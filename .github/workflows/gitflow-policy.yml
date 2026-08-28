@@ -1,0 +1,28 @@
+name: GitFlow policy
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitflow-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gitflow-policy:
+    name: gitflow-policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out policy
+        uses: actions/checkout@v4
+
+      - name: Validate branch name and pull request route
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+          BASE_BRANCH: ${{ github.base_ref }}
+        run: .github/scripts/validate-gitflow.sh "$HEAD_BRANCH" "$BASE_BRANCH"
