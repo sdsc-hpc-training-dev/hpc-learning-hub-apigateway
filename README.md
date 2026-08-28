@@ -31,6 +31,14 @@
 $ npm install
 ```
 
+## Development workflow
+
+This repository uses GitFlow with `main` and `dev` as its protected,
+long-lived branches. Work is integrated through `feature/*`, `release/*`, and
+`hotfix/*` branches. See [.github/GITFLOW.md](.github/GITFLOW.md) for branch
+names, allowed pull request routes, release steps, and the one-time repository
+setup.
+
 ## Compile and run the project
 
 ```bash

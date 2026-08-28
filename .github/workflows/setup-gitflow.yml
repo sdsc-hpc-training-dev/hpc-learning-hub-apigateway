@@ -1,0 +1,39 @@
+name: Set up GitFlow rules
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_dev_branch:
+        description: Create dev from main when dev does not exist
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  configure:
+    name: configure-gitflow
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: repository-administration
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify administrator token
+        env:
+          ADMIN_TOKEN: ${{ secrets.GITFLOW_ADMIN_TOKEN }}
+        run: |
+          if [[ -z "$ADMIN_TOKEN" ]]; then
+            echo "GITFLOW_ADMIN_TOKEN is required." >&2
+            exit 1
+          fi
+
+      - name: Create dev and apply repository rulesets
+        env:
+          GH_TOKEN: ${{ secrets.GITFLOW_ADMIN_TOKEN }}
+          CREATE_DEV_BRANCH: ${{ inputs.create_dev_branch }}
+        run: .github/scripts/configure-gitflow.sh
