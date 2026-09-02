@@ -8,10 +8,10 @@ import security from 'eslint-plugin-security';
 export default tseslint.config(
   {
     ignores: [
-	    'eslint.config.mjs',
-	    '**/coverage/**',
-	    '**/dist/**',
-	    '**/reports/**'
+      'eslint.config.mjs',
+      '**/coverage/**',
+      '**/dist/**',
+      '**/reports/**',
     ],
   },
   eslint.configs.recommended,
