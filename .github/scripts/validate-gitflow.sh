@@ -9,6 +9,8 @@ feature_pattern='^feature/[a-z0-9][a-z0-9._-]*$'
 release_pattern='^release/[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'
 hotfix_pattern='^hotfix/[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'
 
+main_pattern='main'
+
 is_feature() {
   [[ $1 =~ $feature_pattern ]]
 }
@@ -19,6 +21,10 @@ is_release() {
 
 is_hotfix() {
   [[ $1 =~ $hotfix_pattern ]]
+}
+
+is_main() {
+  [[ $1 == $main_pattern ]]
 }
 
 valid=false
@@ -32,8 +38,8 @@ case "$base_branch" in
     fi
     ;;
   dev)
-    expected='feature/<slug>, release/<semver>, or hotfix/<semver>'
-    if is_feature "$head_branch" || is_release "$head_branch" || is_hotfix "$head_branch"; then
+    expected='feature/<slug>, release/<semver>, main, or hotfix/<semver>'
+    if is_feature "$head_branch" || is_release "$head_branch" || is_hotfix "$head_branch" || is_main "$head_branch"; then
       valid=true
     fi
     ;;
