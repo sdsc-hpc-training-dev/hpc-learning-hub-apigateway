@@ -1,4 +1,4 @@
-# SDSC Learning Hub Meeting Notes
+# HPC Learning Hub Meeting Notes
 
 This file is the shared, repository-backed record of Learning Hub meetings.
 Entries are kept in **reverse chronological order**: add each new meeting
