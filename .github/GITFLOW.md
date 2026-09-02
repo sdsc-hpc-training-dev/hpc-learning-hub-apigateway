@@ -7,7 +7,7 @@ branches. Changes reach `main` only through a reviewed release or hotfix.
 
 | Branch             | Start from       | Purpose                  | Merge into         |
 | ------------------ | ---------------- | ------------------------ | ------------------ |
-| `main`             | n/a              | Production history       | n/a                |
+| `main`             | n/a              | Production history       | `dev` (back-sync)  |
 | `dev`              | `main` initially | Next release integration | `release/<semver>` |
 | `feature/<slug>`   | `dev` normally   | One focused change       | `dev`              |
 | `release/<semver>` | `dev`            | Release stabilization    | `main`, then `dev` |
@@ -27,6 +27,7 @@ versions without a leading `v`, for example `release/1.4.0` or `hotfix/1.4.1`.
 | `release/*` | `dev`                     | Back-merge release-only changes                             |
 | `hotfix/*`  | `main`                    | Publish an urgent fix                                       |
 | `hotfix/*`  | `dev`                     | Back-merge the production fix                               |
+| `main`      | `dev`                     | Synchronize all released changes back into development      |
 
 The `gitflow-policy` check rejects every other source/target combination. The
 `quality-gate` check installs locked dependencies, lints, checks formatting,
@@ -50,16 +51,17 @@ Open a pull request into `dev`. Delete the feature branch after it is merged.
    `feature/*` branch based on the release branch when review is needed.
 3. Open `release/X.Y.Z` into `main` and merge after approval and checks pass.
 4. Tag the merge commit as `vX.Y.Z`.
-5. Open the same release branch into `dev` and merge it before deleting the
-   release branch.
+5. Open `main` into `dev` to synchronize the completed release and any other
+   production changes, then delete the release branch.
 
 ## Hotfix flow
 
 1. Create `hotfix/X.Y.Z` from an up-to-date `main`.
 2. Implement and validate only the production fix.
-3. Open the hotfix into both `main` and `dev`.
-4. Merge into `main`, tag the merge commit as `vX.Y.Z`, then merge into `dev`.
-5. Delete the hotfix branch after both pull requests are merged.
+3. Open the hotfix into `main` and merge it after approval and checks pass.
+4. Tag the merge commit as `vX.Y.Z`, then open `main` into `dev` to synchronize
+   the production fix.
+5. Delete the hotfix branch after the synchronization is complete.
 
 ## One-time GitHub setup
 
