@@ -25,6 +25,14 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Architecture documentation
+
+- [Implementation brief for the intern team](docs/intern-implementation-brief.md)
+- [System contracts v0.1](docs/system-contracts-v0.1.md)
+- [Persistence class diagram](docs/sdsc-learning-hub-persistence-class-diagram.md)
+- [AIDA router architecture verdict](docs/aida-router-architecture-verdict.md)
+- [Data ingestion and RAG automation review](docs/young-data-ingestion-and-rag-automation-review.md)
+
 ## Project setup
 
 ```bash
