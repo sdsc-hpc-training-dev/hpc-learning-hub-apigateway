@@ -51,6 +51,9 @@ jobs:
       - name: Check unused code and dependencies
         run: npm run unused:check
 
+      - name: Audit production dependencies
+        run: npm run audit:prod
+
       - name: Upload coverage reports
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
