@@ -1,8 +1,8 @@
 # SDSC Learning Hub API Gateway Persistence Class Diagram
 
-This is the authoritative persistence/domain model for the Learning Hub API Gateway MVP. All four logical namespaces below coexist in **one PostgreSQL database**; `ChunkEmbedding.embedding` uses the `pgvector` extension in that database. The Snapshot v3 archive remains immutable in S3, while the importer builds the relational catalog and retrieval index used by the API.
+This is the authoritative persistence/domain model for the Learning Hub API Gateway MVP. All four logical namespaces below coexist in **one PostgreSQL database**; `ChunkEmbedding.embedding` uses the `pgvector` extension in that database. Snapshot archives remain immutable in S3, while the importer builds the relational catalog and retrieval index used by the API.
 
-Snapshot v3 currently provides 530 materials, 1,423 resources, 520 event editions, 6 event series, 49 people, 21 topics, 36 tools, 5 systems, and 2,291 content chunks. It does not contain generated embeddings; the importer creates those after loading and validating the supplied chunks.
+`Snapshot v3` identifies a schema family, not one unique dataset. The reviewed initial fixture is `snapshot-v3-20260805T002229Z`, archive SHA-256 `82B16349C93B88AD31FA8D08D76B2BA2A470C0E327151A6BD695B51967CC6945`. It provides 530 materials, 1,423 resources, 520 event editions, 6 event series, 49 people, 21 topics, 36 tools, 5 systems, and 2,291 content chunks. It does not contain generated embeddings; the importer creates those after loading and validating the supplied chunks. Every later import or comparison must identify its exact snapshot ID and checksum rather than saying only "Snapshot v3."
 
 ## 1. Identity and learner continuity
 
@@ -232,14 +232,10 @@ namespace SnapshotCatalog {
     +string snapshotId
     +string title
     +string description
-    +datetime publishedAt
-    +datetime sourceUpdatedAt
-    +FreshnessStatus freshnessStatus
     +string sourceRepository
     +string sourceCommit
     +string groupingMethod
-    +string stableSourceIdentity
-    +boolean isAvailable
+    +string groupingNote
   }
 
   class ContentResource {
@@ -251,16 +247,16 @@ namespace SnapshotCatalog {
     +string originalUrl
     +string source
     +string sourceDocument
-    +string availabilityStatus
+    +string status
     +string verificationStatus
     +string extractionStatus
     +string contentHash
     +string sessionKey
-    +string textSelectionPolicyVersion
+    +string textSelectionPolicy
     +integer sourceFileCount
     +integer indexedFileCount
     +integer excludedFileCount
-    +jsonb exclusionCounts
+    +jsonb excludedByReason
     +boolean requiresOcr
   }
 
@@ -415,13 +411,6 @@ namespace SnapshotCatalog {
     +string sourceDocument
   }
 
-  class FreshnessStatus {
-    <<enumeration>>
-    CURRENT
-    LEGACY
-    UNKNOWN
-  }
-
   class ResourceType {
     <<enumeration>>
     CATALOG_METADATA
@@ -471,7 +460,6 @@ TrainingMaterial "1" <-- "0..*" MaterialInstructor : material
 Person "1" <-- "0..*" MaterialInstructor : instructor
 ContentResource "1" *-- "0..*" ContentResourceFile : selected files
 
-TrainingMaterial "0..*" --> "1" FreshnessStatus : classified as
 ContentResource "0..*" --> "1" ResourceType : has type
 ```
 
@@ -532,6 +520,8 @@ namespace AIDAPersistence {
     +integer sequence
     +AidaMessageRole role
     +text content
+    +string contextMaterialId
+    +string contextResourceId
     +datetime createdAt
   }
 
@@ -539,14 +529,20 @@ namespace AIDAPersistence {
     +UUID id
     +UUID assistantMessageId
     +string snapshotId
+    +AidaRoute route
     +AidaAnswerMode answerMode
+    +decimal routerConfidence
+    +text limitations
     +string routerVersion
     +string strategyVersion
     +string modelProvider
     +string modelName
     +AidaRunStatus status
     +integer retrievedCandidateCount
+    +integer queryEmbeddingLatencyMs
+    +integer routingLatencyMs
     +integer retrievalLatencyMs
+    +integer timeToFirstTokenMs
     +integer generationLatencyMs
     +integer totalLatencyMs
     +integer inputTokenCount
@@ -577,6 +573,14 @@ namespace AIDAPersistence {
     +datetime createdAt
   }
 
+  class AidaCoverageGap {
+    +UUID id
+    +UUID answerRunId
+    +string reasonCode
+    +text details
+    +datetime createdAt
+  }
+
   class ChunkSourceKind {
     <<enumeration>>
     TRANSCRIPT
@@ -591,12 +595,20 @@ namespace AIDAPersistence {
     ASSISTANT
   }
 
-  class AidaAnswerMode {
+  class AidaRoute {
     <<enumeration>>
     CATALOG_API
     GENERAL_RAG
     TRANSCRIPT_RAG
-    ABSTENTION
+    ABSTAIN
+  }
+
+  class AidaAnswerMode {
+    <<enumeration>>
+    GROUNDED
+    PARTIAL
+    GENERAL
+    ABSTAINED
   }
 
   class AidaRunStatus {
@@ -650,11 +662,15 @@ ContentChunk "1" *-- "0..*" ChunkEmbedding : embedded by model
 User "1" *-- "0..*" AidaConversation : owns history
 AidaConversation "1" *-- "1..*" AidaMessage : contains
 AidaMessage "0..*" --> "1" AidaMessageRole : has role
+AidaMessage "0..*" --> "0..1" TrainingMaterial : optional context
+AidaMessage "0..*" --> "0..1" ContentResource : optional context
 AidaMessage "1" --> "0..1" AidaAnswerRun : assistant answer
 AidaAnswerRun "0..*" --> "1" CatalogSnapshot : used snapshot
-AidaAnswerRun "0..*" --> "1" AidaAnswerMode : used mode
+AidaAnswerRun "0..*" --> "1" AidaRoute : selected route
+AidaAnswerRun "0..*" --> "1" AidaAnswerMode : support level
 AidaAnswerRun "0..*" --> "1" AidaRunStatus : has status
 AidaAnswerRun "1" *-- "0..*" AidaCitation : cites
+AidaAnswerRun "1" *-- "0..1" AidaCoverageGap : records gap
 AidaCitation "0..*" --> "1" TrainingMaterial : material
 AidaCitation "0..*" --> "0..1" ContentResource : resource
 AidaCitation "0..*" --> "0..1" ContentChunk : evidence
@@ -673,7 +689,7 @@ AidaFeedback "0..*" --> "1" AidaFeedbackRating : has rating
 
 ### Snapshot import and activation
 
-- `CatalogSnapshot.id` is the immutable Snapshot v3 `snapshot_id`; `bucketObjectKey` and `objectSha256` identify the exact archive.
+- `CatalogSnapshot.id` is the immutable manifest `snapshot_id`; `bucketObjectKey` and `objectSha256` identify the exact archive. The schema version alone never identifies an import.
 - An import run downloads the archive, verifies its SHA-256 manifest, validates record counts and foreign keys, loads catalog/chunk rows, generates embeddings, and records individual failures.
 - Catalog tables are the active product-serving projection. Import into staging tables first, then activate the validated projection transactionally. Preserve older bundles in S3 and their `CatalogSnapshot`/run history in PostgreSQL.
 - Permit only one `CatalogSnapshot` with `status = ACTIVE` using a partial unique index.
@@ -686,16 +702,17 @@ AidaFeedback "0..*" --> "1" AidaFeedbackRating : has rating
 - Snapshot aliases are split by target type so every alias has a real foreign key. This avoids an unchecked `(entityType, canonicalId)` pair.
 - The importer flattens Snapshot v3's nested source fields deliberately: material repository/commit metadata maps to `sourceRepository`/`sourceCommit`; event source values map to the explicit date, time, event ID, and source-file columns; resource `file_paths` and `file_hashes` map to `ContentResourceFile`; relationship provenance maps to the explicit evidence columns. The immutable S3 bundle remains the record for source fields not needed by the serving model.
 - `ContentResourceFile` maps selected repository file paths and hashes. Large source text remains in the immutable snapshot; searchable text is stored as `ContentChunk` rows.
-- `publishedAt`, `sourceUpdatedAt`, and `freshnessStatus` may be unknown when Snapshot v3 lacks evidence. Store null/`UNKNOWN`; do not infer a date merely from import time.
+- The serving model does not invent material publication, freshness, or availability fields that the reviewed fixture cannot supply. Event dates and resource verification/status remain explicit and independently queryable.
 
 ### Learner and AIDA records
 
 - New users receive one `UserRole`, defaulting to `LEARNER`. `MAINTAINER` and `ADMIN` are assigned by an authorized administrator, not by CILogon claims or self-registration.
 - Public catalog browsing and public AIDA remain account-free. Anonymous AIDA interactions are transient; only authenticated users receive persisted conversation history.
-- Persist only user/assistant message content, answer strategy/run metadata, citations, feedback, and the rolling conversation summary. Do not store assembled system prompts, developer prompts, retrieved-context prompts, credentials, or provider secrets.
+- Persist only user/assistant message content, optional canonical UI context, route and support-mode metadata, citations, feedback, coverage gaps, and the rolling conversation summary. Do not store assembled system prompts, developer prompts, retrieved-context prompts, credentials, or provider secrets.
+- `AidaRoute` records how evidence was selected. `AidaAnswerMode` independently records whether the final answer was grounded, partial, general, or abstained. Retrieval may force an abstention after an initially valid route when evidence is weak or uncitable.
 - A citation always identifies a canonical training material. It may additionally identify a resource and content chunk. Abstentions may have no citations.
 - `modelProvider`, `modelName`, and generation/token metrics are nullable for deterministic catalog answers and abstentions; citation `resourceId` and `chunkId` are also nullable.
-- User-managed conversation deletion should hard-delete the conversation and cascade to messages, answer runs, citations, and feedback, subject to the adopted audit/retention policy.
+- User-managed conversation deletion should hard-delete the conversation and cascade to messages, answer runs, citations, coverage gaps, and feedback, subject to the adopted audit/retention policy.
 
 ### Required constraints and indexes
 
@@ -704,14 +721,14 @@ AidaFeedback "0..*" --> "1" AidaFeedbackRating : has rating
 - Unique: `CatalogSnapshot.id` and `CatalogSnapshot.bucketObjectKey`; every canonical catalog `id`; every relationship `relationshipId`; every join's FK pair; each alias normalized within its target table.
 - Unique: `EventSeriesEdition.eventEditionId`, because Snapshot v3 allows an event edition to belong to at most one series.
 - Unique: `(ContentResourceFile.resourceId, ContentResourceFile.path)`; `(ContentChunk.contentResourceId, ContentChunk.chunkIndex, ContentChunk.chunkingVersion, ContentChunk.textHash)`; `(ChunkEmbedding.chunkId, ChunkEmbedding.embeddingModel, ChunkEmbedding.embeddingVersion)`.
-- Unique: `(AidaMessage.conversationId, AidaMessage.sequence)`; one `AidaAnswerRun` per assistant message; `(AidaFeedback.assistantMessageId, AidaFeedback.userId)`.
+- Unique: `(AidaMessage.conversationId, AidaMessage.sequence)`; one `AidaAnswerRun` per assistant message; one `AidaCoverageGap` per answer run; `(AidaFeedback.assistantMessageId, AidaFeedback.userId)`.
 - Check: `LearningProgress.progressPercent` is between 0 and 100; path, message, and citation positions are non-negative; `ContentChunk.wordStart <= wordEnd`; embedding dimensions match the configured model.
-- Check: an `AidaAnswerRun` belongs only to an `ASSISTANT` message; a feedback user must own the message's conversation; `CatalogSnapshot.activatedAt` is present only for an active or retired snapshot.
+- Check: an `AidaAnswerRun` belongs only to an `ASSISTANT` message; a feedback user must own the message's conversation; optional message context IDs resolve to canonical catalog rows; `CatalogSnapshot.activatedAt` is present only for an active or retired snapshot.
 - Search indexes: PostgreSQL full-text indexes over material/event titles and descriptions; normalized-name indexes for people/topics/tools/systems and aliases; B-tree indexes on every join FK and `snapshotId`.
-- Catalog filter indexes: event `startAt`; material `freshnessStatus`/`isAvailable`; resource `resourceType`/`availabilityStatus`; relationship target IDs used by topic, tool, system, instructor, event, and resource filters.
+- Catalog filter indexes: event `startAt`; resource `resourceType`/`status`; relationship target IDs used by topic, tool, system, instructor, event, and resource filters.
 - Retrieval indexes: B-tree index on `ContentChunk.sourceKind`; full-text index on chunk text; pgvector HNSW or IVFFlat index compatible with the chosen distance operator.
 - History indexes: `(AidaConversation.userId, AidaConversation.updatedAt)` and `(AidaMessage.conversationId, AidaMessage.sequence)`.
-- Delete behavior: cascade user-owned records from `User`; cascade embeddings from chunks and citations/runs/messages from conversations; cascade imported join rows from catalog entities. Restrict deletion of catalog entities referenced by bookmarks, progress, path items, or AIDA history. Deactivate unavailable materials instead of silently destroying user references.
+- Delete behavior: cascade user-owned records from `User`; cascade embeddings from chunks and citations/runs/messages/coverage gaps/feedback from conversations; cascade imported join rows from catalog entities. Restrict deletion of catalog entities referenced by bookmarks, progress, path items, or AIDA history; preserve stable-ID records rather than silently breaking user references.
 
 ### Deferred from this model
 
