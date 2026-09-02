@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -61,6 +63,27 @@ jobs:
           name: coverage-reports
           path: coverage/
           retention-days: 14
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24.x'
+          cache: false
+
+      - name: Install Gitleaks
+        env:
+          GOBIN: ${{ runner.temp }}/gitleaks
+        run: |
+          mkdir -p "$GOBIN"
+          go install github.com/gitleaks/gitleaks/v8@v8.30.0
+
+      - name: Scan Git history for secrets
+        run: >
+         ${{ runner.temp }}/gitleaks/gitleaks
+         git
+         --redact
+         --verbose
+         .
 
       - name: Build
         run: npm run build
