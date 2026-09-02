@@ -28,6 +28,7 @@
 ## Architecture documentation
 
 - [Implementation brief for the intern team](docs/intern-implementation-brief.md)
+- [Reverse-chronological meeting notes](docs/meeting-notes.md)
 - [System contracts v0.1](docs/system-contracts-v0.1.md)
 - [Persistence class diagram](docs/sdsc-learning-hub-persistence-class-diagram.md)
 - [AIDA router architecture verdict](docs/aida-router-architecture-verdict.md)
