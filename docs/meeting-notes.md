@@ -64,6 +64,7 @@ and [architectural stories and quality scenarios](https://github.com/sdsc-hpc-tr
 **Documents to use:** [AIDA router verdict](aida-router-architecture-verdict.md),
 [system contracts v0.1](system-contracts-v0.1.md),
 [persistence class diagram](sdsc-learning-hub-persistence-class-diagram.md),
+[ingestion worker specification](specs/ingestion-worker.md),
 [AIDA V2 benchmark](https://github.com/sdsc-hpc-training-dev/intvid-backend/tree/codex/aida-mvp-benchmark-v2/benchmarks/aida-mvp-v2),
 and the [current Python router](https://github.com/sdsc-llm-dev/aida-router).
 
