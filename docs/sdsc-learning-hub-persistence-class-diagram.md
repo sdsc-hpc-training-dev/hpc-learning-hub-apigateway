@@ -1,6 +1,10 @@
 # SDSC Learning Hub API Gateway Persistence Class Diagram
 
-This diagram represents the entities persisted by the NestJS API Gateway in PostgreSQL. `ChunkEmbedding.embedding` is a `pgvector` column in that same database. S3 and the snapshot importer are external components, so this model records their provenance through `CatalogSnapshot` rather than treating them as database classes.
+This is the authoritative persistence/domain model for the Learning Hub API Gateway MVP. All four logical namespaces below coexist in **one PostgreSQL database**; `ChunkEmbedding.embedding` uses the `pgvector` extension in that database. The Snapshot v3 archive remains immutable in S3, while the importer builds the relational catalog and retrieval index used by the API.
+
+Snapshot v3 currently provides 530 materials, 1,423 resources, 520 event editions, 6 event series, 49 people, 21 topics, 36 tools, 5 systems, and 2,291 content chunks. It does not contain generated embeddings; the importer creates those after loading and validating the supplied chunks.
+
+## 1. Identity and learner continuity
 
 ```mermaid
 classDiagram
@@ -13,6 +17,7 @@ namespace IdentityAndLearning {
     +string displayName
     +UserRole role
     +datetime createdAt
+    +datetime updatedAt
     +datetime lastLoginAt
   }
 
@@ -22,6 +27,8 @@ namespace IdentityAndLearning {
     +string issuer
     +string subject
     +string identityProvider
+    +string institution
+    +datetime createdAt
   }
 
   class Bookmark {
@@ -35,7 +42,7 @@ namespace IdentityAndLearning {
     +UUID id
     +UUID userId
     +string materialId
-    +number progressPercent
+    +decimal progressPercent
     +datetime updatedAt
   }
 
@@ -45,6 +52,7 @@ namespace IdentityAndLearning {
     +string title
     +string description
     +datetime createdAt
+    +datetime updatedAt
   }
 
   class PersonalPathItem {
@@ -61,6 +69,9 @@ namespace IdentityAndLearning {
     +string audience
     +string prerequisites
     +string estimatedScope
+    +boolean isPublished
+    +datetime createdAt
+    +datetime updatedAt
   }
 
   class CuratedPathItem {
@@ -77,18 +88,122 @@ namespace IdentityAndLearning {
   }
 }
 
-namespace SnapshotCatalog {
+namespace CatalogReference {
+  class TrainingMaterial {
+    <<reference>>
+    +string id
+  }
+}
+
+User "0..*" --> "1" UserRole : has role
+User "1" *-- "1" AuthIdentity : authenticates with CILogon
+User "1" *-- "0..*" Bookmark : saves
+User "1" *-- "0..*" LearningProgress : resumes
+User "1" *-- "0..*" PersonalLearningPath : owns
+PersonalLearningPath "1" *-- "0..*" PersonalPathItem : orders
+CuratedLearningPath "1" *-- "1..*" CuratedPathItem : orders
+
+Bookmark "0..*" --> "1" TrainingMaterial : references stable ID
+LearningProgress "0..*" --> "1" TrainingMaterial : tracks stable ID
+PersonalPathItem "0..*" --> "1" TrainingMaterial : references stable ID
+CuratedPathItem "0..*" --> "1" TrainingMaterial : references stable ID
+```
+
+## 2. Snapshot import and activation
+
+```mermaid
+classDiagram
+direction TB
+
+namespace SnapshotImport {
   class CatalogSnapshot {
-    +string snapshotId
+    +string id
     +string schemaVersion
     +string codeVersion
+    +string pipelineCodeHash
     +string configurationHash
+    +string curationVersion
+    +string idRegistryVersion
+    +string datasetScope
+    +boolean sourceTreeDirty
     +datetime generatedAt
     +string bucketObjectKey
     +string objectSha256
-    +datetime importedAt
+    +jsonb fileChecksums
+    +jsonb sourceHashes
+    +jsonb entityCounts
+    +jsonb relationshipCounts
+    +jsonb projectionManifests
+    +jsonb vocabularyVersions
+    +SnapshotStatus status
+    +datetime validatedAt
+    +datetime activatedAt
+    +datetime createdAt
   }
 
+  class SnapshotImportRun {
+    +UUID id
+    +string snapshotId
+    +string importerVersion
+    +ImportRunStatus status
+    +datetime startedAt
+    +datetime completedAt
+    +jsonb sourceEntityCounts
+    +jsonb importedEntityCounts
+    +jsonb sourceRelationshipCounts
+    +jsonb importedRelationshipCounts
+    +integer sourceChunkCount
+    +integer importedChunkCount
+    +integer embeddingCount
+    +integer errorCount
+    +boolean validationPassed
+    +string validationReportKey
+  }
+
+  class SnapshotImportError {
+    +UUID id
+    +UUID importRunId
+    +string stage
+    +string entityType
+    +string sourceRecordId
+    +string sourcePath
+    +string errorCode
+    +string message
+    +jsonb details
+    +datetime createdAt
+  }
+
+  class SnapshotStatus {
+    <<enumeration>>
+    RECEIVED
+    VALIDATED
+    ACTIVE
+    REJECTED
+    RETIRED
+  }
+
+  class ImportRunStatus {
+    <<enumeration>>
+    PENDING
+    RUNNING
+    SUCCEEDED
+    FAILED
+  }
+}
+
+CatalogSnapshot "1" *-- "0..*" SnapshotImportRun : attempted by
+SnapshotImportRun "1" *-- "0..*" SnapshotImportError : reports
+CatalogSnapshot "0..*" --> "1" SnapshotStatus : has status
+SnapshotImportRun "0..*" --> "1" ImportRunStatus : has status
+```
+
+## 3. Snapshot v3 catalog projection
+
+```mermaid
+classDiagram
+direction LR
+
+namespace SnapshotCatalog {
   class EventSeries {
     +string id
     +string snapshotId
@@ -102,11 +217,14 @@ namespace SnapshotCatalog {
     +string snapshotId
     +string title
     +string description
-    +datetime start
-    +datetime end
+    +datetime startAt
+    +datetime endAt
     +string format
     +string location
     +string sourceEventId
+    +string sourceDateText
+    +string sourceTimeText
+    +string sourceFile
   }
 
   class TrainingMaterial {
@@ -114,21 +232,43 @@ namespace SnapshotCatalog {
     +string snapshotId
     +string title
     +string description
+    +datetime publishedAt
+    +datetime sourceUpdatedAt
+    +FreshnessStatus freshnessStatus
     +string sourceRepository
     +string sourceCommit
+    +string groupingMethod
+    +string stableSourceIdentity
+    +boolean isAvailable
   }
 
   class ContentResource {
     +string id
     +string snapshotId
-    +string title
     +ResourceType resourceType
+    +string title
     +string canonicalUrl
     +string originalUrl
+    +string source
+    +string sourceDocument
+    +string availabilityStatus
     +string verificationStatus
     +string extractionStatus
     +string contentHash
-    +string sourcePath
+    +string sessionKey
+    +string textSelectionPolicyVersion
+    +integer sourceFileCount
+    +integer indexedFileCount
+    +integer excludedFileCount
+    +jsonb exclusionCounts
+    +boolean requiresOcr
+  }
+
+  class ContentResourceFile {
+    +string resourceId
+    +string path
+    +string contentHash
+    +integer position
   }
 
   class Person {
@@ -163,21 +303,39 @@ namespace SnapshotCatalog {
     +string source
   }
 
-  class CatalogAlias {
-    +string snapshotId
+  class EventSeriesAlias {
+    +string eventSeriesId
     +string alias
-    +string canonicalId
-    +string entityType
     +string reviewStatus
     +string source
   }
 
-  class CatalogRelationship {
-    +string id
+  class TopicAlias {
+    +string topicId
+    +string alias
+    +string reviewStatus
+    +string source
+  }
+
+  class ToolAlias {
+    +string toolId
+    +string alias
+    +string reviewStatus
+    +string source
+  }
+
+  class SystemAlias {
+    +string systemId
+    +string alias
+    +string reviewStatus
+    +string source
+  }
+
+  class EventSeriesEdition {
+    +string relationshipId
     +string snapshotId
-    +RelationshipType type
-    +string sourceId
-    +string targetId
+    +string eventSeriesId
+    +string eventEditionId
     +string evidence
     +string extractionMethod
     +string reviewStatus
@@ -185,30 +343,145 @@ namespace SnapshotCatalog {
     +string sourceDocument
   }
 
+  class EventMaterial {
+    +string relationshipId
+    +string snapshotId
+    +string eventEditionId
+    +string materialId
+    +string evidence
+    +string extractionMethod
+    +string reviewStatus
+    +string trustClass
+    +string sourceDocument
+  }
+
+  class MaterialResource {
+    +string relationshipId
+    +string snapshotId
+    +string materialId
+    +string resourceId
+    +string evidence
+    +string extractionMethod
+    +string reviewStatus
+    +string trustClass
+    +string sourceDocument
+  }
+
+  class MaterialTopic {
+    +string relationshipId
+    +string snapshotId
+    +string materialId
+    +string topicId
+    +string evidence
+    +string extractionMethod
+    +string reviewStatus
+    +string trustClass
+    +string sourceDocument
+  }
+
+  class MaterialTool {
+    +string relationshipId
+    +string snapshotId
+    +string materialId
+    +string toolId
+    +string evidence
+    +string extractionMethod
+    +string reviewStatus
+    +string trustClass
+    +string sourceDocument
+  }
+
+  class MaterialSystem {
+    +string relationshipId
+    +string snapshotId
+    +string materialId
+    +string systemId
+    +string evidence
+    +string extractionMethod
+    +string reviewStatus
+    +string trustClass
+    +string sourceDocument
+  }
+
+  class MaterialInstructor {
+    +string relationshipId
+    +string snapshotId
+    +string materialId
+    +string personId
+    +string evidence
+    +string extractionMethod
+    +string reviewStatus
+    +string trustClass
+    +string sourceDocument
+  }
+
+  class FreshnessStatus {
+    <<enumeration>>
+    CURRENT
+    LEGACY
+    UNKNOWN
+  }
+
   class ResourceType {
     <<enumeration>>
     CATALOG_METADATA
-    WEBPAGE
+    REPOSITORY
     REPOSITORY_SESSION
+    SLIDES
     TRANSCRIPT
     VIDEO
-    SLIDES
-    REPOSITORY
-  }
-
-  class RelationshipType {
-    <<enumeration>>
-    INSTANCE_OF
-    HAS_MATERIAL
-    HAS_RESOURCE
-    COVERS_TOPIC
-    TEACHES_TOOL
-    TARGETS_SYSTEM
-    TAUGHT_BY
+    WEBPAGE
   }
 }
 
-namespace AIDARetrieval {
+namespace ImportReference {
+  class CatalogSnapshot {
+    <<reference>>
+    +string id
+  }
+}
+
+CatalogSnapshot "1" --> "0..*" EventSeries : supplies
+CatalogSnapshot "1" --> "0..*" EventEdition : supplies
+CatalogSnapshot "1" --> "0..*" TrainingMaterial : supplies
+CatalogSnapshot "1" --> "0..*" ContentResource : supplies
+CatalogSnapshot "1" --> "0..*" Person : supplies
+CatalogSnapshot "1" --> "0..*" Topic : supplies
+CatalogSnapshot "1" --> "0..*" Tool : supplies
+CatalogSnapshot "1" --> "0..*" System : supplies
+
+EventSeries "1" *-- "0..*" EventSeriesAlias : recognized by
+Topic "1" *-- "0..*" TopicAlias : recognized by
+Tool "1" *-- "0..*" ToolAlias : recognized by
+System "1" *-- "0..*" SystemAlias : recognized by
+
+EventSeries "1" <-- "0..*" EventSeriesEdition : series
+EventEdition "1" <-- "0..1" EventSeriesEdition : edition
+EventEdition "1" <-- "0..*" EventMaterial : event
+TrainingMaterial "1" <-- "0..*" EventMaterial : material
+TrainingMaterial "1" <-- "0..*" MaterialResource : material
+ContentResource "1" <-- "0..*" MaterialResource : resource
+TrainingMaterial "1" <-- "0..*" MaterialTopic : material
+Topic "1" <-- "0..*" MaterialTopic : topic
+TrainingMaterial "1" <-- "0..*" MaterialTool : material
+Tool "1" <-- "0..*" MaterialTool : tool
+TrainingMaterial "1" <-- "0..*" MaterialSystem : material
+System "1" <-- "0..*" MaterialSystem : system
+TrainingMaterial "1" <-- "0..*" MaterialInstructor : material
+Person "1" <-- "0..*" MaterialInstructor : instructor
+ContentResource "1" *-- "0..*" ContentResourceFile : selected files
+
+TrainingMaterial "0..*" --> "1" FreshnessStatus : classified as
+ContentResource "0..*" --> "1" ResourceType : has type
+```
+
+## 4. AIDA retrieval and conversation persistence
+
+```mermaid
+classDiagram
+direction TB
+
+namespace AIDAPersistence {
   class ContentChunk {
     +string id
     +string snapshotId
@@ -225,7 +498,7 @@ namespace AIDARetrieval {
     +string sourceHash
     +string sourceEntityId
     +string sourceLocation
-    +json provenance
+    +jsonb provenance
     +string chunkingVersion
     +string language
   }
@@ -233,9 +506,74 @@ namespace AIDARetrieval {
   class ChunkEmbedding {
     +UUID id
     +string chunkId
-    +string model
+    +string embeddingModel
+    +string embeddingVersion
     +integer dimensions
+    +string contentHash
     +vector embedding
+    +datetime createdAt
+  }
+
+  class AidaConversation {
+    +UUID id
+    +UUID userId
+    +string title
+    +text summaryText
+    +integer summaryThroughSequence
+    +datetime summaryUpdatedAt
+    +datetime lastMessageAt
+    +datetime createdAt
+    +datetime updatedAt
+  }
+
+  class AidaMessage {
+    +UUID id
+    +UUID conversationId
+    +integer sequence
+    +AidaMessageRole role
+    +text content
+    +datetime createdAt
+  }
+
+  class AidaAnswerRun {
+    +UUID id
+    +UUID assistantMessageId
+    +string snapshotId
+    +AidaAnswerMode answerMode
+    +string routerVersion
+    +string strategyVersion
+    +string modelProvider
+    +string modelName
+    +AidaRunStatus status
+    +integer retrievedCandidateCount
+    +integer retrievalLatencyMs
+    +integer generationLatencyMs
+    +integer totalLatencyMs
+    +integer inputTokenCount
+    +integer outputTokenCount
+    +string traceId
+    +string errorCode
+    +datetime startedAt
+    +datetime completedAt
+  }
+
+  class AidaCitation {
+    +UUID id
+    +UUID answerRunId
+    +string materialId
+    +string resourceId
+    +string chunkId
+    +integer position
+    +text evidenceText
+    +decimal relevanceScore
+  }
+
+  class AidaFeedback {
+    +UUID id
+    +UUID assistantMessageId
+    +UUID userId
+    +AidaFeedbackRating rating
+    +text comment
     +datetime createdAt
   }
 
@@ -246,69 +584,139 @@ namespace AIDARetrieval {
     REPOSITORY_SESSION
     SLIDES
   }
+
+  class AidaMessageRole {
+    <<enumeration>>
+    USER
+    ASSISTANT
+  }
+
+  class AidaAnswerMode {
+    <<enumeration>>
+    CATALOG_API
+    GENERAL_RAG
+    TRANSCRIPT_RAG
+    ABSTENTION
+  }
+
+  class AidaRunStatus {
+    <<enumeration>>
+    RUNNING
+    SUCCEEDED
+    FAILED
+  }
+
+  class AidaFeedbackRating {
+    <<enumeration>>
+    HELPFUL
+    NOT_HELPFUL
+  }
 }
 
-User "1" *-- "1" AuthIdentity : authenticates with CILogon
-User "0..*" --> "1" UserRole : has role
-User "1" *-- "0..*" Bookmark : saves
-User "1" *-- "0..*" LearningProgress : resumes
-User "1" *-- "0..*" PersonalLearningPath : owns
-PersonalLearningPath "1" *-- "1..*" PersonalPathItem : orders
-CuratedLearningPath "1" *-- "1..*" CuratedPathItem : orders
+namespace ExternalReferences {
+  class User {
+    <<reference>>
+    +UUID id
+  }
 
-Bookmark "0..*" --> "1" TrainingMaterial : references
-LearningProgress "0..*" --> "1" TrainingMaterial : tracks
-PersonalPathItem "0..*" --> "1" TrainingMaterial : references
-CuratedPathItem "0..*" --> "1" TrainingMaterial : references
+  class CatalogSnapshot {
+    <<reference>>
+    +string id
+  }
 
-CatalogSnapshot "1" *-- "0..*" EventSeries : imports
-CatalogSnapshot "1" *-- "1..*" EventEdition : imports
-CatalogSnapshot "1" *-- "1..*" TrainingMaterial : imports
-CatalogSnapshot "1" *-- "1..*" ContentResource : imports
-CatalogSnapshot "1" *-- "0..*" Person : imports
-CatalogSnapshot "1" *-- "0..*" Topic : imports
-CatalogSnapshot "1" *-- "0..*" Tool : imports
-CatalogSnapshot "1" *-- "0..*" System : imports
-CatalogSnapshot "1" *-- "0..*" CatalogAlias : imports
-CatalogSnapshot "1" *-- "1..*" CatalogRelationship : imports
+  class TrainingMaterial {
+    <<reference>>
+    +string id
+  }
 
-EventEdition "0..*" --> "0..1" EventSeries : INSTANCE_OF
-EventEdition "0..1" --> "1..*" TrainingMaterial : HAS_MATERIAL
-TrainingMaterial "0..*" --> "1..*" ContentResource : HAS_RESOURCE
-TrainingMaterial "0..*" --> "0..*" Topic : COVERS_TOPIC
-TrainingMaterial "0..*" --> "0..*" Tool : TEACHES_TOOL
-TrainingMaterial "0..*" --> "0..*" System : TARGETS_SYSTEM
-TrainingMaterial "0..*" --> "0..*" Person : TAUGHT_BY
+  class ContentResource {
+    <<reference>>
+    +string id
+  }
 
-CatalogAlias ..> EventSeries : may name
-CatalogAlias ..> Topic : may name
-CatalogAlias ..> Tool : may name
-CatalogAlias ..> System : may name
-CatalogRelationship ..> RelationshipType
-ContentResource ..> ResourceType
+  class EventEdition {
+    <<reference>>
+    +string id
+  }
+}
 
-CatalogSnapshot "1" *-- "0..*" ContentChunk : imports
+CatalogSnapshot "1" --> "0..*" ContentChunk : supplies
 ContentChunk "0..*" --> "1" TrainingMaterial : grounds answer
-ContentChunk "0..*" --> "1" ContentResource : cites
+ContentChunk "0..*" --> "1" ContentResource : derived from
 ContentChunk "0..*" --> "0..1" EventEdition : event context
-ContentChunk ..> ChunkSourceKind
-ContentChunk "1" *-- "0..*" ChunkEmbedding : indexed by model
+ContentChunk "0..*" --> "1" ChunkSourceKind : has source kind
+ContentChunk "1" *-- "0..*" ChunkEmbedding : embedded by model
+
+User "1" *-- "0..*" AidaConversation : owns history
+AidaConversation "1" *-- "1..*" AidaMessage : contains
+AidaMessage "0..*" --> "1" AidaMessageRole : has role
+AidaMessage "1" --> "0..1" AidaAnswerRun : assistant answer
+AidaAnswerRun "0..*" --> "1" CatalogSnapshot : used snapshot
+AidaAnswerRun "0..*" --> "1" AidaAnswerMode : used mode
+AidaAnswerRun "0..*" --> "1" AidaRunStatus : has status
+AidaAnswerRun "1" *-- "0..*" AidaCitation : cites
+AidaCitation "0..*" --> "1" TrainingMaterial : material
+AidaCitation "0..*" --> "0..1" ContentResource : resource
+AidaCitation "0..*" --> "0..1" ContentChunk : evidence
+AidaMessage "1" *-- "0..*" AidaFeedback : receives
+AidaFeedback "0..*" --> "1" User : submitted by
+AidaFeedback "0..*" --> "1" AidaFeedbackRating : has rating
 ```
 
-## Why the model is divided into sections
+## Implementation notes and scope decisions
 
-- **Identity and learner data** is mutable application state owned by the Learning Hub.
-- **Snapshot catalog data** is imported, versioned content owned by the data pipeline.
-- **AIDA retrieval data** is a derived search index that can be rebuilt from a snapshot.
+### One database, four logical namespaces
 
-The sections share one PostgreSQL database for the MVP. The separation identifies different ownership and lifecycle rules; it does not imply three databases or prevent foreign-key relationships between them.
+- `IdentityAndLearning`, `SnapshotImport`, `SnapshotCatalog`, and `AIDAPersistence` are logical ownership boundaries, not separate databases.
+- PostgreSQL stores every table in this diagram. `pgvector` adds the vector column and similarity index used by `ChunkEmbedding`.
+- S3 is the immutable source/archive. The web application and normal catalog API query PostgreSQL, not S3.
 
-## Deliberately outside this persistence diagram
+### Snapshot import and activation
 
-- React/Next.js components and NestJS controllers, services, guards, and modules
-- S3 bucket, snapshot importer, GitHub Actions, and deployment infrastructure
-- CILogon OAuth/OIDC request sequence and tokens
-- Training material submission, drafts, moderation, and publication workflow
-- Shared or group learning paths and path visibility
-- Neo4j and GraphRAG research paths
-- AIDA conversation history until ownership, deletion, and retention are defined
+- `CatalogSnapshot.id` is the immutable Snapshot v3 `snapshot_id`; `bucketObjectKey` and `objectSha256` identify the exact archive.
+- An import run downloads the archive, verifies its SHA-256 manifest, validates record counts and foreign keys, loads catalog/chunk rows, generates embeddings, and records individual failures.
+- Catalog tables are the active product-serving projection. Import into staging tables first, then activate the validated projection transactionally. Preserve older bundles in S3 and their `CatalogSnapshot`/run history in PostgreSQL.
+- Permit only one `CatalogSnapshot` with `status = ACTIVE` using a partial unique index.
+- Snapshot v3 supplies chunks but declares `embedding_model = not-generated`; the importer must create `ChunkEmbedding` rows before AIDA RAG is considered ready.
+
+### Relational catalog
+
+- The serving model uses explicit join tables for every supported Snapshot v3 relationship. There is no polymorphic `CatalogRelationship` table in the active catalog.
+- Each join table preserves Snapshot v3's relationship ID, evidence, extraction method, review status, trust class, and source document.
+- Snapshot aliases are split by target type so every alias has a real foreign key. This avoids an unchecked `(entityType, canonicalId)` pair.
+- The importer flattens Snapshot v3's nested source fields deliberately: material repository/commit metadata maps to `sourceRepository`/`sourceCommit`; event source values map to the explicit date, time, event ID, and source-file columns; resource `file_paths` and `file_hashes` map to `ContentResourceFile`; relationship provenance maps to the explicit evidence columns. The immutable S3 bundle remains the record for source fields not needed by the serving model.
+- `ContentResourceFile` maps selected repository file paths and hashes. Large source text remains in the immutable snapshot; searchable text is stored as `ContentChunk` rows.
+- `publishedAt`, `sourceUpdatedAt`, and `freshnessStatus` may be unknown when Snapshot v3 lacks evidence. Store null/`UNKNOWN`; do not infer a date merely from import time.
+
+### Learner and AIDA records
+
+- New users receive one `UserRole`, defaulting to `LEARNER`. `MAINTAINER` and `ADMIN` are assigned by an authorized administrator, not by CILogon claims or self-registration.
+- Public catalog browsing and public AIDA remain account-free. Anonymous AIDA interactions are transient; only authenticated users receive persisted conversation history.
+- Persist only user/assistant message content, answer strategy/run metadata, citations, feedback, and the rolling conversation summary. Do not store assembled system prompts, developer prompts, retrieved-context prompts, credentials, or provider secrets.
+- A citation always identifies a canonical training material. It may additionally identify a resource and content chunk. Abstentions may have no citations.
+- `modelProvider`, `modelName`, and generation/token metrics are nullable for deterministic catalog answers and abstentions; citation `resourceId` and `chunkId` are also nullable.
+- User-managed conversation deletion should hard-delete the conversation and cascade to messages, answer runs, citations, and feedback, subject to the adopted audit/retention policy.
+
+### Required constraints and indexes
+
+- Unique: normalized `User.email`; `AuthIdentity.userId`; `(AuthIdentity.issuer, AuthIdentity.subject)`; `(Bookmark.userId, Bookmark.materialId)`; `(LearningProgress.userId, LearningProgress.materialId)`.
+- Unique: `(PersonalPathItem.pathId, PersonalPathItem.position)` and `(PersonalPathItem.pathId, PersonalPathItem.materialId)`; equivalent constraints for curated path items.
+- Unique: `CatalogSnapshot.id` and `CatalogSnapshot.bucketObjectKey`; every canonical catalog `id`; every relationship `relationshipId`; every join's FK pair; each alias normalized within its target table.
+- Unique: `EventSeriesEdition.eventEditionId`, because Snapshot v3 allows an event edition to belong to at most one series.
+- Unique: `(ContentResourceFile.resourceId, ContentResourceFile.path)`; `(ContentChunk.contentResourceId, ContentChunk.chunkIndex, ContentChunk.chunkingVersion, ContentChunk.textHash)`; `(ChunkEmbedding.chunkId, ChunkEmbedding.embeddingModel, ChunkEmbedding.embeddingVersion)`.
+- Unique: `(AidaMessage.conversationId, AidaMessage.sequence)`; one `AidaAnswerRun` per assistant message; `(AidaFeedback.assistantMessageId, AidaFeedback.userId)`.
+- Check: `LearningProgress.progressPercent` is between 0 and 100; path, message, and citation positions are non-negative; `ContentChunk.wordStart <= wordEnd`; embedding dimensions match the configured model.
+- Check: an `AidaAnswerRun` belongs only to an `ASSISTANT` message; a feedback user must own the message's conversation; `CatalogSnapshot.activatedAt` is present only for an active or retired snapshot.
+- Search indexes: PostgreSQL full-text indexes over material/event titles and descriptions; normalized-name indexes for people/topics/tools/systems and aliases; B-tree indexes on every join FK and `snapshotId`.
+- Catalog filter indexes: event `startAt`; material `freshnessStatus`/`isAvailable`; resource `resourceType`/`availabilityStatus`; relationship target IDs used by topic, tool, system, instructor, event, and resource filters.
+- Retrieval indexes: B-tree index on `ContentChunk.sourceKind`; full-text index on chunk text; pgvector HNSW or IVFFlat index compatible with the chosen distance operator.
+- History indexes: `(AidaConversation.userId, AidaConversation.updatedAt)` and `(AidaMessage.conversationId, AidaMessage.sequence)`.
+- Delete behavior: cascade user-owned records from `User`; cascade embeddings from chunks and citations/runs/messages from conversations; cascade imported join rows from catalog entities. Restrict deletion of catalog entities referenced by bookmarks, progress, path items, or AIDA history. Deactivate unavailable materials instead of silently destroying user references.
+
+### Deferred from this model
+
+- Material submission, draft moderation, and publication workflows
+- Shared/social learning paths and path visibility
+- Neo4j and GraphRAG persistence
+- NestJS controllers, services, guards, modules, S3 clients, and deployment components
+- Transcript timestamp columns until the snapshot preserves `start_seconds` and `end_seconds`
