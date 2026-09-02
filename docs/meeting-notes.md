@@ -27,16 +27,17 @@ end-to-end demonstration for the following meeting.
 
 - Finish the Gateway quality gates: formatting, linting, type checking, tests,
   coverage, build, dependency scanning, and migration validation.
-- Review whether the GitFlow workflows and protected branch rules behave as
+- Check that the GitFlow workflows and protected branch rules work as
   documented.
-- Finish the NestJS package/module diagram. It should show modules,
-  controllers, services, persistence adapters, and external integrations.
-- Begin the persistence implementation using the approved class diagram and
+- Finish the NestJS package diagram. It should show the main modules,
+  controllers, services, database code, and external services.
+- Begin the database implementation using the approved class diagram and
   contracts.
-- Prioritize the initial PostgreSQL/pgvector migrations because the ingestion
-  worker depends on them.
-- Implement one working catalog vertical slice before creating every planned
-  entity and repository.
+- Create the first PostgreSQL/pgvector migrations so Mio and Arnav can use the
+  same tables in their ingestion tests.
+- Start with one small example that works from beginning to end: store a
+  training material in PostgreSQL and retrieve it through the Gateway. Use that
+  example as the pattern for the remaining database work.
 
 ### Shing and Keyura: Frontend
 
@@ -45,17 +46,18 @@ end-to-end demonstration for the following meeting.
 [user personas](https://github.com/sdsc-hpc-training-dev/training-landing-page/blob/main/docs/user-personas.md),
 and [architectural stories and quality scenarios](https://github.com/sdsc-hpc-training-dev/training-landing-page/blob/main/docs/architectural-user-stories-and-quality-scenarios.md).
 
-- Explain how the frontend work is divided and identify shared components or
-  routes that require coordination.
-- Confirm whether they can manage the split independently or need a narrower
-  assignment.
-- Review the Next.js architecture, current design, and API integration plan.
-- Inspect the frontend quality pipeline: linting, type checking, tests, build,
+- Agree on how the frontend work will be divided and identify pages or
+  components that they will need to coordinate on.
+- Confirm whether they can manage that split or need help making the
+  responsibilities clearer.
+- Review the Next.js structure, current design, and plan for connecting to the
+  Gateway.
+- Check the frontend pipeline: linting, type checking, tests, production build,
   and branch protection.
 - Add or verify accessibility checks using `eslint-plugin-jsx-a11y`, Playwright,
   and `axe`.
-- Demonstrate one complete learner journey rather than several disconnected
-  screens.
+- Complete one learner task from beginning to end instead of building several
+  disconnected screens.
 
 ### Mio and Arnav: Router and Ingestion Worker
 
@@ -65,22 +67,23 @@ and [architectural stories and quality scenarios](https://github.com/sdsc-hpc-tr
 [AIDA V2 benchmark](https://github.com/sdsc-hpc-training-dev/intvid-backend/tree/codex/aida-mvp-benchmark-v2/benchmarks/aida-mvp-v2),
 and the [current Python router](https://github.com/sdsc-llm-dev/aida-router).
 
-- First, ask Arnav how long he expects to remain on the project. Assign critical
-  ownership with that date in mind.
-- Freeze the four AIDA routes: `catalog_api`, `general_rag`,
-  `transcript_rag`, and `abstain`.
-- Mio owns Python-based router training and evaluation and exports a versioned,
-  language-neutral classifier artifact.
-- Arnav implements the NestJS runtime inference module and parity tests.
-- Python does not need to remain a production service if NestJS can reproduce
-  the same predictions from the exported logistic-regression artifact.
-- Run cached benchmark embeddings through Python and NestJS and require
-  matching route decisions.
-- After the router contract is stable, begin the Python ingestion worker.
-- Run PostgreSQL with `pgvector` locally using Docker and apply the
-  Gateway-owned migrations. Do not create a competing private schema.
-- Load Snapshot v3 catalog metadata, supplied chunks, and generated embeddings;
-  validate record counts and foreign keys.
+- Continue working on the four router choices: Catalog/API, General RAG,
+  Transcript RAG, and Abstention.
+- Mio will continue training and evaluating the router in Python and save the
+  trained model in a versioned file that another application can read.
+- Arnav will test whether NestJS can read that file and make the same routing
+  choices as Python.
+- Begin the Python ingestion worker after the basic router input and output are
+  agreed upon.
+- They do not need to wait for the entire Gateway implementation. They can run
+  PostgreSQL with `pgvector` locally in Docker and test loading a small part of
+  Snapshot v3.
+- Use the approved class diagram and contracts for the test database. Once
+  Srujam's official migrations are ready, use those migrations instead of
+  maintaining separate tables.
+- Compare the RAG and Transcript RAG settings with Young. Everyone must use the
+  same snapshot, chunks, embedding model, retrieval settings, and generation
+  model before comparing results.
 
 ### Young: Snapshot Pipeline
 
@@ -89,55 +92,42 @@ and the [current Python router](https://github.com/sdsc-llm-dev/aida-router).
 [AIDA V2 benchmark](https://github.com/sdsc-hpc-training-dev/intvid-backend/tree/codex/aida-mvp-benchmark-v2/benchmarks/aida-mvp-v2),
 and the [intvid-backend repository](https://github.com/sdsc-hpc-training-dev/intvid-backend).
 
-- Add detailed latency measurements for query embedding, local retrieval,
-  first token, generation, retries, and total request time.
-- Compare his RAG configuration directly with Mio and Arnav's configuration.
-- Standardize the snapshot ID/checksum, source filters, chunking version,
-  embedding model, dimensions, normalization, similarity metric, `top_k`,
-  generation model, prompt version, timeouts, and retries.
-- Walk Fernando through how raw data is currently obtained and identify manual
-  steps, data owners, credentials, and permissions.
-- Treat raw-data acquisition automation as important but not urgent. First make
-  the current benchmark measurable and reproducible.
-- Keep the fast pull-request smoke test separate from slower nightly or manual
-  production-parity tests.
+- Measure how much time is spent creating the query embedding, retrieving
+  content, waiting for the first response token, generating the answer, and
+  retrying failed requests. This should help explain the 40-second responses.
+- Compare the RAG configuration directly with Mio and Arnav and document one
+  shared configuration for future tests.
+- Show how the raw data is currently collected and identify the manual steps,
+  people, credentials, and permissions involved.
+- Raw-data automation is important but not urgent. First make the existing
+  benchmark understandable and repeatable.
+- Keep the quick pull-request test separate from the slower test that more
+  closely matches the real system.
 
 ### Architecture Decisions To Confirm
 
 - PostgreSQL and `pgvector` are one database component.
-- Snapshot archives remain immutable in S3.
-- The ingestion worker reads the snapshot and writes the serving catalog,
-  chunks, and embeddings using the Gateway-owned migrations.
-- The normal API and frontend do not read S3 during user requests.
-- Explicit relationship join tables are authoritative; do not also implement a
-  generic polymorphic relationship table.
-- Python remains the offline router training/evaluation environment. NestJS is
-  the preferred production inference runtime.
-- Do not introduce a shared external vector database into pull-request tests.
-- Material submission, shared learning paths, GraphRAG, and Neo4j remain outside
-  the first MVP implementation.
+- Snapshot files stay in S3. The ingestion worker loads the catalog and AIDA
+  data into PostgreSQL.
+- The website and normal Gateway requests read from PostgreSQL, not S3.
+- The class diagram's specific relationship tables are the ones we will use.
+  Do not create a second generic relationship table.
+- Python is used to train and evaluate the router. NestJS is the preferred
+  place to run the trained router when users ask questions.
+- Do not use a shared external vector database for pull-request tests.
+- Material submission, shared learning paths, GraphRAG, and Neo4j are not part
+  of the first implementation.
 
 ### Deliverables For The Next Meeting
 
-- **Srujam:** green Gateway quality gates, reviewed package diagram, initial
-  migrations, and one functioning persistence slice.
-- **Shing and Keyura:** documented work split, green frontend pipeline,
-  accessibility scan results, and one complete learner journey.
-- **Mio and Arnav:** router artifact contract, Python/NestJS parity result,
-  shared retrieval configuration, and a local ingestion-worker demonstration.
-- **Young:** stage-level latency report, comparison against the shared retrieval
-  configuration, and a raw-data acquisition walkthrough.
-- **Team demonstration:** load Snapshot v3 into local PostgreSQL/pgvector,
-  return one catalog material through the Gateway, and retrieve evidence for
-  one General RAG and one Transcript RAG question.
-
-### Reference Documents
-
-- [Implementation brief](intern-implementation-brief.md)
-- [System contracts v0.1](system-contracts-v0.1.md)
-- [Persistence class diagram](sdsc-learning-hub-persistence-class-diagram.md)
-- [AIDA router verdict](aida-router-architecture-verdict.md)
-- [Young pipeline and latency review](young-data-ingestion-and-rag-automation-review.md)
+- **Srujam:** working Gateway checks, the package diagram, the first migrations,
+  and one small database example.
+- **Shing and Keyura:** their division of work, working frontend checks,
+  accessibility results, and one complete learner task.
+- **Mio and Arnav:** router progress, a small Snapshot v3 ingestion test using
+  PostgreSQL/pgvector, and a shared list of RAG settings.
+- **Young:** a report showing where the RAG test time is spent, the shared RAG
+  settings, and a walkthrough of how raw data is collected.
 
 ## Friday, August 28, 2026
 
