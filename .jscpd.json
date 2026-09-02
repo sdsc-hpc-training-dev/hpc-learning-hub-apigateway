@@ -1,0 +1,9 @@
+{
+  "minTokens": 50,
+  "minLines": 5,
+  "format": ["typescript"],
+  "ignore": ["**/*.spec.ts"],
+  "reporters": ["console", "json", "html"],
+  "output": "reports/jscpd",
+  "threshold": 5
+}
