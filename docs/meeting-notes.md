@@ -1,4 +1,4 @@
-# SDSC Learning Hub Meeting Notes
+# HPC Learning Hub Meeting Notes
 
 This file is the shared, repository-backed record of Learning Hub meetings.
 Entries are kept in **reverse chronological order**: add each new meeting
@@ -21,6 +21,10 @@ end-to-end demonstration for the following meeting.
 
 ### Srujam: API Gateway
 
+**Documents to use:** [persistence class diagram](sdsc-learning-hub-persistence-class-diagram.md),
+[system contracts v0.1](system-contracts-v0.1.md), and the
+[Gateway repository README](../README.md).
+
 - Finish the Gateway quality gates: formatting, linting, type checking, tests,
   coverage, build, dependency scanning, and migration validation.
 - Review whether the GitFlow workflows and protected branch rules behave as
@@ -36,6 +40,11 @@ end-to-end demonstration for the following meeting.
 
 ### Shing and Keyura: Frontend
 
+**Documents to use:** [frontend repository](https://github.com/sdsc-hpc-training-dev/hpc-learning-hub-frontend),
+[functional user stories](https://github.com/sdsc-hpc-training-dev/training-landing-page/blob/main/docs/functional-user-stories.md),
+[user personas](https://github.com/sdsc-hpc-training-dev/training-landing-page/blob/main/docs/user-personas.md),
+and [architectural stories and quality scenarios](https://github.com/sdsc-hpc-training-dev/training-landing-page/blob/main/docs/architectural-user-stories-and-quality-scenarios.md).
+
 - Explain how the frontend work is divided and identify shared components or
   routes that require coordination.
 - Confirm whether they can manage the split independently or need a narrower
@@ -49,6 +58,12 @@ end-to-end demonstration for the following meeting.
   screens.
 
 ### Mio and Arnav: Router and Ingestion Worker
+
+**Documents to use:** [AIDA router verdict](aida-router-architecture-verdict.md),
+[system contracts v0.1](system-contracts-v0.1.md),
+[persistence class diagram](sdsc-learning-hub-persistence-class-diagram.md),
+[AIDA V2 benchmark](https://github.com/sdsc-hpc-training-dev/intvid-backend/tree/codex/aida-mvp-benchmark-v2/benchmarks/aida-mvp-v2),
+and the [current Python router](https://github.com/sdsc-llm-dev/aida-router).
 
 - First, ask Arnav how long he expects to remain on the project. Assign critical
   ownership with that date in mind.
@@ -68,6 +83,11 @@ end-to-end demonstration for the following meeting.
   validate record counts and foreign keys.
 
 ### Young: Snapshot Pipeline
+
+**Documents to use:** [pipeline and latency review](young-data-ingestion-and-rag-automation-review.md),
+[snapshot ingestion contract](system-contracts-v0.1.md#6-snapshot-ingestion-contract),
+[AIDA V2 benchmark](https://github.com/sdsc-hpc-training-dev/intvid-backend/tree/codex/aida-mvp-benchmark-v2/benchmarks/aida-mvp-v2),
+and the [intvid-backend repository](https://github.com/sdsc-hpc-training-dev/intvid-backend).
 
 - Add detailed latency measurements for query embedding, local retrieval,
   first token, generation, retries, and total request time.
