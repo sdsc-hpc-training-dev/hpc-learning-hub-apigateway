@@ -21,6 +21,9 @@ end-to-end demonstration for the following meeting.
 
 ### Srujam: API Gateway
 
+**Architecture follow-up:** [Proposed NestJS module diagram and folder layout](architecture/nestjs-modules.md)
+(documentation proposal for review, not an implementation claim).
+
 **Documents to use:** [persistence class diagram](sdsc-learning-hub-persistence-class-diagram.md),
 [system contracts v0.1](system-contracts-v0.1.md), and the
 [Gateway repository README](../README.md).

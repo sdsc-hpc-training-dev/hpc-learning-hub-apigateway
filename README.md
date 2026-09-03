@@ -32,6 +32,7 @@
 - [Ingestion worker specification](docs/specs/ingestion-worker.md)
 - [System contracts v0.1](docs/system-contracts-v0.1.md)
 - [Persistence class diagram](docs/sdsc-learning-hub-persistence-class-diagram.md)
+- [Proposed NestJS module architecture and folder layout](docs/architecture/nestjs-modules.md)
 - [AIDA router architecture verdict](docs/aida-router-architecture-verdict.md)
 - [Data ingestion and RAG automation review](docs/young-data-ingestion-and-rag-automation-review.md)
 
