@@ -83,8 +83,10 @@ public sign-up option.
 
 Protected Learning and AIDA endpoints use Auth's exported guards and scope
 every query to the authenticated user. Public curated paths and catalog reads
-remain public. The public one-turn AIDA endpoint uses the optional-session
-guard; persisted conversations and feedback require an authenticated owner.
+remain public. Guest one-turn AIDA is gated by
+[D-03](../contracts/decisions-needed.md#d-03-guest-aida); an optional-session
+guard is a proposed mechanism only if that capability is approved. Persisted
+conversations and feedback require an authenticated owner.
 
 ## Proposed Folder Layout
 
@@ -201,7 +203,12 @@ it does not import TypeScript code or define an independent permanent schema.
 DatabaseModule owns the connection, not all these domain repositories.
 Observability owns operational telemetry, not a second copy of conversations.
 Keep canonical IDs intact, record exact snapshot/model versions, and retain
-the persistence model's constraints and deletion rules. Session storage is not
+the persistence model's constraints and deletion rules, subject to the
+[candidate decision register](../contracts/decisions-needed.md): D-05 blocks the
+incompatible chunk uniqueness constraint identified in Snapshot v3. Do not drop
+canonical chunks or silently choose a replacement key. Gateway control of curated
+paths does not settle their initial source, IDs, or population process (D-12).
+Session storage is not
 specified in the current persistence model; do not invent a session table here.
 
 ## AIDA Behavior Inside The Module
@@ -210,12 +217,12 @@ specified in the current persistence model; do not invent a session table here.
 the active snapshot identity through `CatalogService`, and coordinates these
 services. This is runtime behavior, separate from the diagram's import arrows.
 
-| Route            | Retrieval responsibility                                                                                                                                                                                                                        |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `catalog_api`    | Call the same exported `CatalogService` as the public catalog controller. No duplicate catalog engine and no HTTP request back into this Gateway. Counts, IDs, filters, and links are relational queries; prose formatting cannot change facts. |
-| `general_rag`    | `RetrievalService` uses `chunks.query.ts` over the active snapshot's approved non-transcript chunks: `catalog_metadata`, `repository_session`, and `slides`. Match the indexed embedding model/version/dimensions.                              |
-| `transcript_rag` | The same adapter requires `sourceKind = transcript`, plus validated material/resource scope when supplied. Do not merely scope by material and accidentally include slides.                                                                     |
-| `abstain`        | No required retrieval/model call. Return a controlled response for unsupported requests. Empty, weak, or uncitable retrieved evidence can also force abstention after another route was selected.                                               |
+| Route            | Retrieval responsibility                                                                                                                                                                                                                                                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `catalog_api`    | Call the same exported `CatalogService` as the public catalog controller. No duplicate catalog engine and no HTTP request back into this Gateway. Counts, IDs, filters, and links are relational queries; prose formatting cannot change facts.                                                                                                         |
+| `general_rag`    | `RetrievalService` uses `chunks.query.ts` over the active snapshot's approved non-transcript chunks. The proposed set (`catalog_metadata`, `repository_session`, `slides`) remains gated by D-10 and ingestion D4. Match the approved indexed embedding configuration.                                                                                  |
+| `transcript_rag` | Require `sourceKind = transcript`, active snapshot, compatible embedding configuration, and validated recording scope. Missing, conflicting, or unresolved scope, including video-to-transcript association, is gated by D-10 and ingestion D4. Do not broaden retrieval; the controlled clarification, abstention, or error outcome remains undecided. |
+| `abstain`        | No required retrieval/model call. Return a controlled response for unsupported requests. Empty, weak, or uncitable retrieved evidence can also force abstention after another route was selected.                                                                                                                                                       |
 
 One private `NrpClient` is shared by router query embeddings, retrieval query
 embeddings, and synthesis. Reuse an embedding only when model, dimensions,
@@ -297,6 +304,12 @@ cache infrastructure is added by this proposal.
 The contracts call the pre-activation gate "ready" in prose, but the persisted
 snapshot enum has `VALIDATED` and `ACTIVE`, not `READY`. No new enum value or
 schema change is introduced here. These choices do not change the import graph.
+
+For implementation, read the [candidate contract entrypoint](../contracts/agent-entrypoint.md)
+and [technical ingestion companion](../specs/ingestion-worker.md) together. Their
+linked decision registers govern unresolved capabilities; this architecture
+proposal does not close those gates. The combined publication review and
+correction dispositions are recorded in [the release review](../review/contracts-ingestion-dispositions.md).
 
 ## Pinned Sources
 

@@ -37,7 +37,7 @@ local `codex/` branch, not a direct GitFlow release branch.
   recommendations explicitly proposed, and work that can proceed independently.
 - [Agent entrypoint](../agent-entrypoint.md): responsibility-specific reading and
   stop rules; no replacement meeting assignments or persona prompt.
-- This handoff and [local validator](validate-contract-docs.cjs).
+- This handoff and [manual verification recipe](validate-contract-docs.md).
 - [Final review dispositions](contract-review-dispositions.md): agree with R1/R2,
   adopt O1, and leave O2's combined QA to Portal. Six contract-side files total.
 
@@ -93,10 +93,12 @@ not the underlying implementation decisions.
 
 ## Validation
 
-Run from this worktree:
+For the published combined package, run the exact command in the
+[manual verification recipe](validate-contract-docs.md) from the repository
+root, then the following Git checks. The original isolated validator described
+in the execution records below is not installed tooling in this publication.
 
 ```text
-node docs/contracts/review/validate-contract-docs.cjs --companion-revision c6a63676b9cf3dff728037a2d921a3084476afd0
 git diff --check
 git diff --cached --check
 git diff --name-only fda21d619dcc5119f1133501bafa8cc7e800c7cf

@@ -52,12 +52,10 @@ or ORM selection. This documentation handoff itself authorizes no app, CI,
 migration, deployment or external-system changes.
 
 Validation instructions and source limitations are in the
-[revision handoff](review/contract-revision-handoff.md). Run the local document
-validator with `node docs/contracts/review/validate-contract-docs.cjs` from the
-combined worktree. Before integration, add
-`--companion-revision c6a63676b9cf3dff728037a2d921a3084476afd0` to validate intended
-companion crosslinks against that frozen Git object without editing its tree.
-This is not a combined publication check; Portal validates final corrected
-companion content and links. The validator checks documents, not application
-behavior. [Review dispositions](review/contract-review-dispositions.md) record
+[revision handoff](review/contract-revision-handoff.md). Follow the
+[manual documentation verification recipe](review/validate-contract-docs.md)
+from the combined repository root. It checks final combined document structure
+and links, not application behavior, and is not an installed tool or CI check.
+The author's earlier frozen-companion checks are historical evidence only.
+[Review dispositions](review/contract-review-dispositions.md) record
 this author's single correction pass.

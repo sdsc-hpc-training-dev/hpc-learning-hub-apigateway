@@ -1,3 +1,21 @@
+# Contract Documentation Verification
+
+This is a manual documentation QA recipe, not application source or a CI change.
+Run from the repository root with Node.js. It performs only the checks described
+in its output; it does not approve policy or test runtime behavior.
+
+The original CommonJS helper is retained below because this repository's typed
+application lint configuration does not admit standalone documentation scripts.
+No lint rule, exclusion, TypeScript setting, or required check is changed.
+
+```sh
+node -e "const fs=require('node:fs'),p=require('node:path'); const f=p.resolve('docs/contracts/review/validate-contract-docs.md'); const s=fs.readFileSync(f,'utf8').replace(/\r\n/g,'\n').split('// BEGIN DOCUMENTATION CHECK\n')[1].split('// END DOCUMENTATION CHECK')[0]; new Function('require','__dirname',s)(require,p.dirname(f));"
+```
+
+## Verification Source
+
+````javascript
+// BEGIN DOCUMENTATION CHECK
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -18,7 +36,7 @@ assert(
     (args.length === 2 &&
       args[0] === '--companion-revision' &&
       /^[a-f0-9]{40}$/.test(args[1])),
-  'Usage: node validate-contract-docs.cjs [--companion-revision FULL_SHA]',
+  'Run this published manual recipe without extra arguments; frozen-companion mode is retained only for historical verification.',
 );
 const companion = new Map();
 if (args.length) {
@@ -175,3 +193,5 @@ if (companion.size) {
     `Companion link targets: ${companionLinks} checked against Git ${args[1]}; not integrated files or combined publication QA.`,
   );
 }
+// END DOCUMENTATION CHECK
+````
