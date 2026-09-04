@@ -15,16 +15,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality-gate:
-    name: quality-gate
+  format:
+    name: Formatting (Prettier)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          fetch-depth: 0
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+  lint:
+    name: Lint (ESLint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -38,31 +57,160 @@ jobs:
       - name: Lint
         run: npm run lint:check
 
+  typecheck:
+    name: Type check (TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Type-check
         run: npm run typecheck
 
-      - name: Check formatting
-        run: npm run format:check
+  test:
+    name: Tests & coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run unit tests with coverage
         run: npm run test:cov
 
-      - name: Check duplicated code
-        run: npm run duplicates:check
-
-      - name: Check unused code and dependencies
-        run: npm run unused:check
-
-      - name: Audit production dependencies
-        run: npm run audit:prod
+      - name: Enforce configured coverage thresholds
+        if: ${{ !cancelled() }}
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const reportPath = './coverage/coverage-summary.json';
+            if (!fs.existsSync(reportPath)) {
+              console.error('Coverage summary was not generated.');
+              process.exit(1);
+            }
+            const summary = require(reportPath).total;
+            const thresholds = require('./package.json').jest.coverageThreshold.global;
+            let failed = false;
+            for (const [metric, minimum] of Object.entries(thresholds)) {
+              const actual = summary[metric]?.pct;
+              if (typeof actual !== 'number' || actual < minimum) {
+                console.error(
+                  'Coverage for ' + metric + ' is ' + actual +
+                  '%, below required ' + minimum + '%',
+                );
+                failed = true;
+              }
+            }
+            if (failed) process.exit(1);
+          "
 
       - name: Upload coverage reports
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-reports
-          path: coverage/
+          name: coverage-report
+          path: |
+            coverage/lcov-report/**
+            coverage/coverage-final.json
+            coverage/coverage-summary.json
+            coverage/lcov.info
+          if-no-files-found: warn
           retention-days: 14
+
+  duplication:
+    name: Duplicate code (jscpd)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check duplicated code
+        run: npm run duplicates:check
+
+  unused:
+    name: Unused code and dependencies (Knip)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check unused code and dependencies
+        run: npm run unused:check
+
+  audit:
+    name: Dependency audit (npm)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm run audit:prod
+
+  secrets:
+    name: Secret scan (Gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -85,6 +233,15 @@ jobs:
           --verbose
           .
 
+  semgrep:
+    name: Static analysis (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -96,5 +253,116 @@ jobs:
       - name: Run Semgrep security scan
         run: semgrep scan --config p/security-audit --metrics=off --error .
 
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Build
         run: npm run build
+
+  container_scan:
+    name: Docker image scan (Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check for Dockerfile
+        id: dockerfile
+        run: |
+          if [ -f Dockerfile ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No root Dockerfile found; skipping the image scan."
+          fi
+
+      - name: Build API Gateway image
+        if: steps.dockerfile.outputs.exists == 'true'
+        run: docker build -t hpc-learning-hub-apigateway:ci .
+
+      - name: Scan image with Trivy
+        if: steps.dockerfile.outputs.exists == 'true'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: hpc-learning-hub-apigateway:ci
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+  quality-gate:
+    name: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ always() }}
+    needs:
+      - format
+      - lint
+      - typecheck
+      - test
+      - duplication
+      - unused
+      - audit
+      - secrets
+      - semgrep
+      - build
+      - container_scan
+
+    steps:
+      - name: Verify all CI jobs succeeded
+        env:
+          FORMAT_RESULT: ${{ needs.format.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          TYPECHECK_RESULT: ${{ needs.typecheck.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          DUPLICATION_RESULT: ${{ needs.duplication.result }}
+          UNUSED_RESULT: ${{ needs.unused.result }}
+          AUDIT_RESULT: ${{ needs.audit.result }}
+          SECRETS_RESULT: ${{ needs.secrets.result }}
+          SEMGREP_RESULT: ${{ needs.semgrep.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          TRIVY_RESULT: ${{ needs.container_scan.result }}
+        run: |
+          checks=(
+            "format=$FORMAT_RESULT"
+            "lint=$LINT_RESULT"
+            "typecheck=$TYPECHECK_RESULT"
+            "test=$TEST_RESULT"
+            "duplication=$DUPLICATION_RESULT"
+            "unused=$UNUSED_RESULT"
+            "audit=$AUDIT_RESULT"
+            "secrets=$SECRETS_RESULT"
+            "semgrep=$SEMGREP_RESULT"
+            "build=$BUILD_RESULT"
+            "container_scan=$TRIVY_RESULT"
+          )
+
+          failed=0
+          for check in "${checks[@]}"; do
+            name="${check%%=*}"
+            result="${check#*=}"
+            if [ "$result" != "success" ]; then
+              echo "::error::$name finished with status $result"
+              failed=1
+            fi
+          done
+
+          exit "$failed"
