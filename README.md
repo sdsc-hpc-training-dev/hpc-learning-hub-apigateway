@@ -37,6 +37,8 @@
 - [Combined candidate review and corrections](docs/review/contracts-ingestion-dispositions.md)
 - [Persistence class diagram](docs/sdsc-learning-hub-persistence-class-diagram.md)
 - [Proposed NestJS module architecture and folder layout](docs/architecture/nestjs-modules.md)
+- [Rendered NestJS module diagram](docs/architecture/assets/nestjs-modules.svg)
+- [Shared frontend/backend feature mapping (2026-09-04)](docs/architecture/feature-module-mapping.md)
 - [AIDA router architecture verdict](docs/aida-router-architecture-verdict.md)
 - [Data ingestion and RAG automation review](docs/young-data-ingestion-and-rag-automation-review.md)
 
