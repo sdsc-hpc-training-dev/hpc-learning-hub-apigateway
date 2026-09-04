@@ -7,6 +7,35 @@ and relevant schema/tests together. Source keys and exact revisions are in the
 [candidate source table](system-contracts-v0.2-candidate.md#pinned-sources).
 No implementation in the pinned Gateway closes these questions.
 
+## Specialist Crosswalk
+
+The [companion technical ingestion candidate](../specs/ingestion-worker.md#12-decision-register-and-sources)
+has specialist `D1`-`D5` decisions, not aliases for this register's `D-01`-`D-12`.
+For example, companion D3 concerns embeddings, not guest AIDA (D-03). This is
+the coordinating register, not an exclusive replacement for specialist gates.
+The reviewed companion freeze is `c6a63676b9cf3dff728037a2d921a3084476afd0`;
+its final correction participates in Portal's combined integration. Historical
+source I remains the baseline guide, not this companion.
+
+| Companion gate                       | Coordinated contract gates                                                    | Scope that remains open                                                                                                                                                                                                                         |
+| ------------------------------------ | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1: Migration/mapping authority      | [D-05](#D-05)                                                                 | Physical schema/nulls/grants, source mappings, chunk-key compatibility, embedding metadata/uniqueness.                                                                                                                                          |
+| D2: Lifecycle/replacement            | [D-01](#D-01), [D-05](#D-05)                                                  | State/activation authority, candidate isolation/global IDs, locking, interrupted/uncertain commit recovery, referenced-ID retention and explicit M1 attempt/validation semantics.                                                               |
+| D3: Embedding compatibility          | [D-09](#D-09), [D-05](#D-05) for storage                                      | Model/revision, input/config hashing, reuse identity, dimension/normalization/zero norm, distance and compatible vector storage/index.                                                                                                          |
+| D4: Product boundaries               | [D-10](#D-10), [D-12](#D-12)                                                  | General allowlist; missing/conflicting/unresolved recording context and video-to-transcript association under IW-023/T12; curated population/source/IDs, outside worker grants.                                                                 |
+| D5: Bounded operation/report profile | [D-09](#D-09) for provider operation; [D-05](#D-05) for import/report profile | Timeouts, batches/concurrency/retries; archive member/count/byte/expansion limits, private scratch/spool cleanup and versioned report/config serialization. These remaining archive/report gates are not closed by choosing embedding settings. |
+
+**Closure rule:** a capability stays blocked while any applicable gate in
+either register remains open. A decision record identifies both sets of IDs,
+the exact approved portion, affected requirements/tests and both boundary
+owners' review; update both documents in the same coordinated change. Partial
+closure leaves the remaining portions explicitly open. Neither a companion
+proposal, publication, a passing document check nor an independently closed
+central ID overrides its unresolved counterpart. Source precedence remains
+SH-01; substantive disagreement is a recorded conflict for Fernando/owners,
+not authority conferred by which file was edited last. Portal checks closure
+and final relative links in the combined package. No choice is approved here.
+
 <a id="D-01"></a>
 
 ## D-01: Snapshot Readiness And Activation
@@ -105,11 +134,15 @@ B 6.2 creates one before validation; P's run references a snapshot. P stores
 `bucketObjectKey`, while local `--source` and run configuration need durable
 representation. P conversation multiplicity is 1..* messages despite a create
 conversation route with no required first message.
-On 2026-09-03 Portal also relayed Einstein's report of 96 chunk groups colliding
-under P's `(contentResourceId, chunkIndex, chunkingVersion, textHash)` unique
-key in the hash-matched reviewed ZIP. This is a reported compatibility blocker,
-not independently verified evidence from this author; exact report/tuples await
-the combined review. DATA-04 forbids dropping or changing supplied chunks.
+The combined independent review verified 96 colliding groups / 212 rows under
+P's `(contentResourceId, chunkIndex, chunkingVersion, textHash)` unique key,
+zero duplicate canonical ID groups, and 116 rows lost by tuple deduplication.
+[Evidence attribution](review/contract-review-dispositions.md#collision-evidence)
+records the review and companion source; this author did not re-audit the ZIP.
+DATA-04 forbids dropping or changing supplied chunks. The small shared-resource
+fixture is blocked too, not only full import. Companion D5's archive limits,
+scratch cleanup and report/config serialization also require explicit reviewed
+profiles under the crosswalk; they are not selected by the schema choice.
 **Affected:** Srujam, Mio, Arnav; DATA-01 through DATA-06, AIDA-01.
 **Consequence:** importer/schema incompatibility, lost error provenance, silent
 record loss or a failure to create an initially empty conversation.
@@ -120,8 +153,8 @@ source data/aliases/resource files, source provenance and configuration, trusted
 expected checksum delivery, and errors before a valid snapshot is known.
 Unsupported relationship/chunk records should fail validation with an explicit
 report (proposal), not be discarded. If present in the fixture, resolve their
-mapping with Young before import. Verify the reported colliding chunk tuples
-and ask the model owners whether the composite uniqueness rule needs revision;
+mapping with Young before import. Use the verified colliding tuples to ask
+the model owners whether the composite uniqueness rule needs revision;
 do not choose a revised key or silently deduplicate. Approve empty conversation
 creation or require
 a first message. Define same-config replay, concurrent attempts and resumption
@@ -224,15 +257,21 @@ identify a transcript chunk's resource; P supplies material/resource joins but
 no dedicated video-transcript association. B 7.2 permits safe general fallback;
 R's abstain executor has no retrieval/generation. General RAG's exact allowlist,
 weak-evidence thresholds, low-confidence behavior and coverage-gap reasons are
-not finalized.
+not finalized. Combined review R1 identified optional supplied scope in the
+reviewed companion IW-023/T12, conflicting with AIDA-03. Companion D4 and this
+decision now jointly gate missing, conflicting and unresolved recording scope,
+including video-to-transcript association; Portal checks the corrected wording
+in both documents before publication.
 **Affected:** product, Gateway Router/Retrieval, Next.js, benchmark; AIDA-02/03/04/06.
 **Consequence:** wrong-recording answers, overly broad transcript retrieval,
 unsupported groundedness claims or telemetry confusing outages with corpus gaps.
 **Options / proposal:** recommend an explicit reviewed context DTO with IDs,
 scope semantics and conflict checks. For an open video, define how to select
 its transcript resource(s); do not treat video ID equality as transcript
-matching. Reject or clarify unresolved/conflicting scope rather than broaden it
-(proposal). Approve a general-chunk allowlist, evidence/coverage-gap rules and
+matching. Missing, conflicting or unresolved scope blocks implementation of the
+affected transcript request behavior until a controlled outcome is approved.
+Clarification, abstention or an error are undecided options, not selected policy;
+unscoped searching is not approved. Approve a general-chunk allowlist, evidence/coverage-gap rules and
 deterministic fallbacks; decide whether safe general explanations use the
 abstain route or are unavailable in the initial release. Retain independent
 route and answerMode and always filter transcript kind plus valid scope.

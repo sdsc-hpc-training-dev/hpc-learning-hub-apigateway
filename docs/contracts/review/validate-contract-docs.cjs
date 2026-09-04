@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '../../..');
 const names = [
@@ -8,8 +9,31 @@ const names = [
   'docs/contracts/decisions-needed.md',
   'docs/contracts/agent-entrypoint.md',
   'docs/contracts/review/contract-revision-handoff.md',
+  'docs/contracts/review/contract-review-dispositions.md',
 ];
 const readText = (file) => fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+const args = process.argv.slice(2);
+assert(
+  args.length === 0 ||
+    (args.length === 2 &&
+      args[0] === '--companion-revision' &&
+      /^[a-f0-9]{40}$/.test(args[1])),
+  'Usage: node validate-contract-docs.cjs [--companion-revision FULL_SHA]',
+);
+const companion = new Map();
+if (args.length) {
+  for (const name of [
+    'docs/specs/ingestion-worker.md',
+    'docs/specs/review/ingestion-worker-technical-handoff.md',
+  ]) {
+    companion.set(
+      name,
+      execFileSync('git', ['-C', root, 'show', `${args[1]}:${name}`], {
+        encoding: 'utf8',
+      }).replace(/\r\n/g, '\n'),
+    );
+  }
+}
 const documents = new Map(
   names.map((name) => [name, readText(path.join(root, name))]),
 );
@@ -37,6 +61,7 @@ const anchors = (text) => {
 };
 
 let localLinks = 0;
+let companionLinks = 0;
 let jsonExamples = 0;
 for (const [name, text] of documents) {
   assert(!/[^\x00-\x7f]/.test(text), `${name}: unexpected non-ASCII text`);
@@ -66,13 +91,18 @@ for (const [name, text] of documents) {
       : path.join(root, name);
     const fromRoot = path.relative(root, resolved);
     assert(!fromRoot.startsWith('..'), `${name}: link leaves repository`);
-    assert(fs.existsSync(resolved), `${name}: missing link ${target}`);
+    const frozenText = companion.get(fromRoot.split(path.sep).join('/'));
+    assert(
+      frozenText !== undefined || fs.existsSync(resolved),
+      `${name}: missing link ${target}`,
+    );
     if (fragment) {
       assert(
-        anchors(readText(resolved)).has(fragment),
+        anchors(frozenText ?? readText(resolved)).has(fragment),
         `${name}: missing anchor ${target}`,
       );
     }
+    if (frozenText !== undefined) companionLinks++;
     localLinks++;
   }
   for (const match of text.matchAll(/```json\n([\s\S]*?)\n```/g)) {
@@ -140,3 +170,8 @@ console.log(
 console.log(
   'Scope: document structure, JSON syntax, example scalar checks, local links. Not application tests, full wire-schema validation, or remote URL reachability.',
 );
+if (companion.size) {
+  console.log(
+    `Companion link targets: ${companionLinks} checked against Git ${args[1]}; not integrated files or combined publication QA.`,
+  );
+}

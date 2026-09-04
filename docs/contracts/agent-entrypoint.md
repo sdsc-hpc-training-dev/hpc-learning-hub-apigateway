@@ -7,13 +7,13 @@ candidate's Reading Rules, Pinned Sources, Implementation Inventory and SH-01
 through SH-04. Load only the responsibility sections below plus their cited
 source sections and linked decisions.
 
-| Responsibility                            | Requirements to load                               | Decision gates                    |
-| ----------------------------------------- | -------------------------------------------------- | --------------------------------- |
-| Gateway HTTP / Next.js                    | HTTP-01 through HTTP-05; AIDA-01/02 for AIDA views | D-02/03/04/07/11/12               |
-| Gateway migrations / auth / personal data | HTTP-03/04; DATA-01/05/06; AIDA-01/05              | D-01/02/04/05/06/07/12            |
-| Catalog importer                          | DATA-01 through DATA-03, DATA-05 through DATA-07   | D-01/05; D-11 for published links |
-| Chunk / embedding ingestion               | DATA-01/02, DATA-04 through DATA-07; AIDA-03/04    | D-01/05/09/10                     |
-| AIDA runtime / offline artifact           | AIDA-01 through AIDA-06; DATA-04/06                | D-02/03/06/07/08/09/10/11         |
+| Responsibility                            | Requirements to load                                                                                                                     | Decision gates                                                                                                                    |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Gateway HTTP / Next.js                    | HTTP-01 through HTTP-05; AIDA-01/02 for AIDA views                                                                                       | D-02/03/04/07/11/12                                                                                                               |
+| Gateway migrations / auth / personal data | HTTP-03/04; DATA-01/05/06; AIDA-01/05                                                                                                    | D-01/02/04/05/06/07/12                                                                                                            |
+| Catalog importer                          | DATA-01 through DATA-03, DATA-05 through DATA-07; [companion IW contract](../specs/ingestion-worker.md#12-decision-register-and-sources) | D-01/05; D-11 for links; companion D1/D2/D5 via the [crosswalk](decisions-needed.md#specialist-crosswalk)                         |
+| Chunk / embedding ingestion               | DATA-01/02, DATA-04 through DATA-07; AIDA-03/04; [companion IW contract](../specs/ingestion-worker.md#12-decision-register-and-sources)  | D-01/05/09/10; companion D1-D5 via the [crosswalk](decisions-needed.md#specialist-crosswalk), including D-12's exclusion boundary |
+| AIDA runtime / offline artifact           | AIDA-01 through AIDA-06; DATA-04/06                                                                                                      | D-02/03/06/07/08/09/10/11                                                                                                         |
 
 Requirements and decisions have stable anchors, for example
 [DATA-03](system-contracts-v0.2-candidate.md#DATA-03) and
@@ -24,8 +24,14 @@ results. Resolve missing wire fields before generating integrated frontend
 fixtures or publishing OpenAPI.
 
 Source precedence: fixed current scope first; B for boundary behavior, P for
-domain constraints, I/R for specialist contracts. Conflicts go to the decision
-register. Code establishes implemented status, not replacement requirements.
+domain constraints, I/R for historical specialist sources. The technical
+ingestion companion is separate from historical I and remains candidate.
+Its D1-D5 gates are coordinated, not numerically interchangeable with central
+D-01-D-12. Use the crosswalk's closure rule: both applicable registers need the
+same reviewed disposition, with unresolved portions still blocked. Archive
+limits, scratch cleanup and report/config serialization remain specialist D5
+gates even after embedding settings are chosen. Conflicts go to the linked
+registers. Code establishes implemented status, not replacement requirements.
 Physical schema comes from reviewed Gateway migrations once available. HTTP
 types come from reviewed Gateway OpenAPI once available; neither exists at the
 pinned starter revision. Do not create a second worker schema or independent
@@ -48,4 +54,10 @@ migration, deployment or external-system changes.
 Validation instructions and source limitations are in the
 [revision handoff](review/contract-revision-handoff.md). Run the local document
 validator with `node docs/contracts/review/validate-contract-docs.cjs` from the
-candidate worktree. It checks the documents, not application behavior.
+combined worktree. Before integration, add
+`--companion-revision c6a63676b9cf3dff728037a2d921a3084476afd0` to validate intended
+companion crosslinks against that frozen Git object without editing its tree.
+This is not a combined publication check; Portal validates final corrected
+companion content and links. The validator checks documents, not application
+behavior. [Review dispositions](review/contract-review-dispositions.md) record
+this author's single correction pass.

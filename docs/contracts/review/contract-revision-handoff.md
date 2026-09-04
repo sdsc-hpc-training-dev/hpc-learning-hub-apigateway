@@ -1,8 +1,9 @@
 # Contract Revision Handoff
 
 **Status:** Local candidate, pending Fernando's review. Baseline unchanged.
-**Date:** 2026-09-03. **Authoring:** one author; one self-review; no delegated
-review, experiments or application implementation.
+**Date:** 2026-09-03. **Authoring:** one author; one self-review and one final
+correction pass responding to Portal's independent combined review. This author
+launched no reviewer and performed no experiments or application implementation.
 
 ## Frozen Source And Worktree
 
@@ -37,6 +38,8 @@ local `codex/` branch, not a direct GitFlow release branch.
 - [Agent entrypoint](../agent-entrypoint.md): responsibility-specific reading and
   stop rules; no replacement meeting assignments or persona prompt.
 - This handoff and [local validator](validate-contract-docs.cjs).
+- [Final review dispositions](contract-review-dispositions.md): agree with R1/R2,
+  adopt O1, and leave O2's combined QA to Portal. Six contract-side files total.
 
 Three principal clarifications from v0.1:
 
@@ -73,20 +76,27 @@ approved tolerance; keep that evidence instead of claiming no tolerance exists.
 The backend S tree contains review/validation records absent from R's reviewed
 router copy; neither tree establishes that the other has been repaired.
 
-Additional coordination evidence: Portal relayed Einstein's report of 96 chunk
-groups colliding under P's proposed resource/index/version/text-hash unique key
-in the reviewed hash-matched ZIP. This author did not inspect that ZIP/report.
-D-05 explicitly blocks finalizing the incompatible constraint/full import until
-the combined review verifies the tuples and model owners resolve the conflict.
-Preserving every canonical chunk remains required; no revised key or discarded
-chunk is approved by this candidate.
+The independent combined review verified 96 colliding chunk groups / 212 rows,
+zero duplicate canonical ID groups and 116 rows that tuple deduplication would
+lose. [Evidence attribution](contract-review-dispositions.md#collision-evidence)
+identifies the report/digest and retained companion evidence. This author read
+the reports, not the ZIP. D-05 blocks the incompatible constraint and even the
+small shared-resource DB demonstration until model owners resolve it without
+losing canonical chunks. No replacement key was approved.
+
+Final correction adds the central/specialist gate crosswalk and coordinated
+closure rule, identifies the technical companion separately from historical I,
+and explicitly gates missing/conflicting/unresolved transcript scope under
+D-10 / companion D4. Curated-path Gateway control is distinguished from its
+unsettled population/provenance. These changes close documentation findings,
+not the underlying implementation decisions.
 
 ## Validation
 
 Run from this worktree:
 
 ```text
-node docs/contracts/review/validate-contract-docs.cjs
+node docs/contracts/review/validate-contract-docs.cjs --companion-revision c6a63676b9cf3dff728037a2d921a3084476afd0
 git diff --check
 git diff --cached --check
 git diff --name-only fda21d619dcc5119f1133501bafa8cc7e800c7cf
@@ -99,7 +109,7 @@ JSON examples and selected scalar/enum properties. It does not pretend the
 examples constitute a final wire schema. Immutable external source links are
 checked against local Git objects, not remote page availability.
 
-**Execution record:** Passed local document validator: four Markdown documents,
+**Original freeze execution record:** Passed local document validator: four Markdown documents,
 22 requirement source/acceptance sections, 12 defined decisions, five parsed
 JSON examples and 40 local links/anchors. All 11 external immutable source-link
 targets passed `git cat-file -e` in their named local repositories. `node
@@ -108,6 +118,23 @@ successfully using the existing Gateway installation; no dependency install or
 package change. Both unstaged/staged `git diff --check` passed. Staged file
 inventory contains only these five additions under `docs/contracts/`. Baseline
 blob remained `e2d2a3dc0897f2837d3ac0a9110219fd7df395a1`.
+
+**Final correction checks:** passed frozen-companion mode: five Markdown
+documents, 22 requirement source/acceptance sections, 12 central decisions,
+five parsed JSON examples and 63 links/anchors, including five link uses checked
+against the companion Git objects. All 12 external immutable source-link
+targets resolve in local Git, including historical I. Validator syntax,
+Prettier and `git diff --check` passed; only the original five contract-side
+files plus the disposition file changed. The v0.1 baseline blob is unchanged.
+The no-override integrated-mode check was also run and correctly failed on the
+companion decision anchor absent from the historical guide in this tree. That
+expected failure is not an integrated-package pass or a new source defect.
+The command above verifies intended companion link targets against the reviewed
+Git objects without importing or editing the companion worktree. It is not a
+combined check of Einstein's final corrected content. Portal runs integrated
+validation without the override after integration, including its final scope
+wording, crosswalk and architecture annotations. No local-only author commit
+is represented as a reachable GitHub source link.
 
 Self-review completed: required fields versus examples; source/persistence/wire
 enum distinctions; imported/runtime ownership; unsupported source records;
@@ -129,13 +156,15 @@ Next.js diagram author: coordinate provisional endpoint/DTO contracts (D-02),
 guest AIDA (D-03), sign-in/role matrix (D-04), delivery (D-07), recording scope
 (D-10) and curated-path source (D-12). Older submission UI is out of scope.
 These are review coordination points, not instructions to edit their diagrams.
-No parallel author's worktree or unfinished diagram was inspected or modified.
+No mutable parallel-author files or unfinished diagrams were inspected or
+modified. The authorized frozen companion Git objects were read for this pass.
 
 Publication update: Fernando authorized publication after review/corrections.
 The existing task **Portal, FrontEnd and BackEnd**
 (`01a03f13-2e7b-7b40-afb0-b97f6fa5557c`, local) is the sole release coordinator
 for both repositories and their actual default branches through protections/
 checks. This author freezes local documentation only and does not push or merge.
-Portal will arrange one combined independent review, then send one correction
-request. This author will provide agree/disagree dispositions and a final local
-commit for that bounded pass; candidate decisions remain explicitly candidate.
+Portal completed the combined independent review and requested this one
+correction pass. Agree/disagree dispositions and the final local commit are
+handed back to Portal for integration/publication. No second reviewer or
+independent publication is requested; candidate decisions remain candidate.

@@ -33,7 +33,7 @@ consulting historical evidence after subsequent edits.
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | B   | [System contracts v0.1](../system-contracts-v0.1.md): cross-system baseline, status Draft for team approval.                                                                                                                                                                                                                                                                           |
 | P   | [Persistence model](../sdsc-learning-hub-persistence-class-diagram.md): domain entities, constraints, ownership; not executable DDL or HTTP schemas.                                                                                                                                                                                                                                   |
-| I   | [Ingestion specification](../specs/ingestion-worker.md): worker boundary, initial demonstration, configuration and tests.                                                                                                                                                                                                                                                              |
+| I   | [Historical ingestion guide](https://github.com/sdsc-hpc-training-dev/hpc-learning-hub-apigateway/blob/fda21d619dcc5119f1133501bafa8cc7e800c7cf/docs/specs/ingestion-worker.md): baseline worker boundary, initial demonstration, configuration and tests; not the companion candidate.                                                                                                |
 | R   | [Router verdict](../aida-router-architecture-verdict.md): target and release gates; reports review of `sdsc-llm-dev/aida-router` at `d1297843b1660b14afe94589bc6a5ea886302267`. That router repository was not re-evaluated here.                                                                                                                                                      |
 | T   | [Implementation brief](../intern-implementation-brief.md): owner assignments and integration sequence.                                                                                                                                                                                                                                                                                 |
 | C   | [main.ts](../../src/main.ts), [module](../../src/app.module.ts), [controller](../../src/app.controller.ts), [service](../../src/app.service.ts), [package.json](../../package.json), [unit test](../../src/app.controller.spec.ts), [E2E test](../../test/app.e2e-spec.ts): implementation evidence only.                                                                              |
@@ -46,6 +46,23 @@ The backend checkout HEAD was `5b9facf4f68e51c1f63574fc2551cede2f48eea2`
 available v3 benchmark branch, without changing that checkout. S is schema and
 builder evidence, not proof that every emitted value is present in the archive.
 The benchmark manifest identifies the same fixture as B.
+
+### Companion Candidate
+
+The [Ingestion Worker Technical Contract](../specs/ingestion-worker.md#12-decision-register-and-sources)
+is a separately reviewed companion, not historical source I or an approved
+override. Its reviewed local freeze was
+`c6a63676b9cf3dff728037a2d921a3084476afd0`; Portal coordinates the corrected
+combined version. Its `IW-*` requirements and specialist `D1`-`D5` gates participate
+through the [crosswalk and closure rule](decisions-needed.md#specialist-crosswalk).
+This candidate does not approve its labeled proposals by linking them.
+
+Source I's immutable link identifies only the original guide at the pinned
+Gateway baseline; every I citation retains that historical meaning after
+integration replaces the relative `docs/specs/ingestion-worker.md` path.
+The companion and contract share unresolved gates; neither can close one by
+silently overriding the other. Portal verifies their final crosslinks and
+consistent transcript-scope wording before publication.
 
 ### Implementation Inventory
 
@@ -327,7 +344,9 @@ Importer access MUST be restricted to imported catalog, typed aliases/joins,
 chunks, embeddings and import lifecycle data. It MUST NOT read or modify
 users, identities, sessions, roles, bookmarks, progress, personal/curated paths,
 conversations, messages, answer runs, citations, feedback or coverage gaps.
-Runtime owns those records; importer is not a general application DB user.
+Gateway controls access to those records; importer is not a general application
+DB user. Curated paths remain excluded from the worker without deciding their
+population source, creation process or ID provenance; those remain D-12.
 
 **Source:** F; B sections 5, 6.3; I "Tables The Worker Must Not Manage", "First
 Migration Group"; P implementation notes. **Acceptance:** apply Gateway
@@ -528,12 +547,15 @@ section is the single domain constraint catalogue, including:
   removal of canonical entities referenced by learner data or AIDA history.
   Preserve stable-ID references rather than break them.
 
-**Reported blocker (not independently verified here):** on 2026-09-03 Portal
-relayed Einstein's report that the reviewed ZIP hash matches and 96 chunk groups
-collide under P's `(contentResourceId, chunkIndex, chunkingVersion, textHash)`
-uniqueness rule. The exact evidence report is reserved for the coordinated
-review. D-05 blocks finalizing this constraint/full import compatibility until
-the source tuples are verified and the model owners approve a resolution.
+**Verified compatibility blocker:** the combined independent review verified
+96 groups / 212 rows colliding under P's
+`(contentResourceId, chunkIndex, chunkingVersion, textHash)` uniqueness rule,
+with zero duplicate canonical ID groups among 2291 chunks. Tuple deduplication
+would lose 116 rows. See [evidence attribution](review/contract-review-dispositions.md#collision-evidence).
+This author read the review and retained companion evidence, not the ZIP.
+D-05 blocks finalizing this constraint/import compatibility until the model
+owners approve a preservation-compatible resolution, including the small
+shared-resource fixture; verification did not approve a replacement key.
 Neither dropping canonical chunks nor adding a field to the key is approved.
 DATA-04's preservation rule remains in force.
 
@@ -718,8 +740,12 @@ R's `query`/`material_id`/`content_resource_id`/`scope` interface is D-02/D-10.
 runtime DTO"; T Arnav boundary. **Acceptance:** seed transcript chunks inside
 and outside selected scope, plus slides inside it; transcript retrieval returns
 only in-scope transcript chunks. An open-recording follow-up overrides a
-contradictory text-only classifier. Missing context takes the approved controlled
-path, never unscoped transcript retrieval. Catalog answers survive disabled
+contradictory text-only classifier. Separate missing, conflicting and unresolved
+recording-context cases remain gated by D-10, including unresolved video-to-
+transcript association. After approval, each returns the approved controlled
+outcome, never unscoped transcript retrieval. This criterion does not choose
+clarification, abstention or an error; the companion's IW-023/T12/D4 share this
+gate. Catalog answers survive disabled
 LLM retrieval.
 
 <a id="AIDA-04"></a>
@@ -825,8 +851,9 @@ Gate". **Acceptance / promotion evidence:**
 ## Implementation Gates
 
 Load the [agent entrypoint](agent-entrypoint.md) for responsibility-specific
-sections. [Decisions needed](decisions-needed.md) is the sole decision register;
-examples never close a decision. Source mappings, security invariants and small
+sections. [Decisions needed](decisions-needed.md) coordinates the contract and
+linked specialist gates through its crosswalk; examples never close a decision.
+Source mappings, security invariants and small
 deterministic tests can proceed while affected wire/configuration portions are
 blocked. Do not generate a purportedly final OpenAPI from these minimum fields.
 
