@@ -1,281 +1,281 @@
-# Ingestion Worker Specification
+# Ingestion Worker Technical Contract
 
-**Date:** Wednesday, September 2, 2026  
-**Primary owners:** Mio and Arnav  
-**Database migration owner:** Srujam  
-**Status:** First implementation specification
+**Status:** Technical candidate for engineering review; not an implemented schema or approval to deploy.
 
-## What We Are Building
+**Date:** 2026-09-03.
 
-The ingestion worker is a small Python application that reads one exact HPC
-Learning Hub snapshot and loads the information needed by the website and AIDA
-into PostgreSQL with `pgvector`.
+**Gateway source revision:** `fda21d619dcc5119f1133501bafa8cc7e800c7cf` (fetched and pinned `origin/main`).
 
-The worker is not part of the normal web-request path. It runs when we need to
-load or replace a snapshot. The website and AIDA then read the prepared data
-from PostgreSQL instead of downloading files from S3 for every request.
+**Snapshot contract/benchmark revision:** `5b9085d8717e31ffbb06e5621992ff05a14fbe89` in `intvid-backend`, local and origin-tracking `codex/aida-mvp-benchmark-v2`.
 
-The first goal is intentionally small:
+**Combined-review companion:** The [system-contract candidate][companion] and [central decision register][central-decisions] were read at local Gateway commit `2b076a74028a85f14ffb1ff72ac9d4012c33e944` for R1/R2 integration corrections. These relative paths require combined publication; that frozen candidate is not approved policy. Its historical source I denotes the original guide, not this technical companion.
 
-> Load one training material, its resource, its searchable chunks, and its
-> embeddings into a local PostgreSQL/pgvector database, then retrieve one of
-> those chunks with a vector search.
+**Change summary:** Replaces the student task guide with verified field mappings, privilege boundaries, failure/recovery gates, and deterministic acceptance assertions. Corrects chunk units, separates import from migration/startup, and exposes fixture/uniqueness and lifecycle conflicts. The previous guide remains in Git at the Gateway source revision.
 
-Once that works, use the same approach for the rest of Snapshot v3.
+Requirement labels: **E** means established in frozen documents or supplied scope, not necessarily implemented; **P** means a proposed testable safeguard or refinement requiring review. **D1-D5** are unresolved decisions in section 12. Every `IW-*` requirement is conditional on its stated milestone. Source references resolve in section 12. Logical class/field names come from [the persistence model][persistence]; snake-case table names below remain proposals. There are **no versioned database migrations, ORM dependency, or migration command at this Gateway revision**.
 
-## Documents To Use
+## 1. Scope And Preconditions
 
-These documents are the source of truth for this work:
+- **IW-001 (E, scope; [system], [persistence]):** One offline Python worker imports one immutable, static v3 artifact from a local ZIP path or S3-compatible object URI into the Gateway's one PostgreSQL database with pgvector. It uses a restricted database identity directly, neither the public HTTP API nor imported NestJS code. Gateway-owned versioned migrations alone create/evolve shared tables; there is no permanent worker-owned schema. Parser tests can precede migrations; database integration cannot.
+- **IW-002 (E, scope):** Import only lifecycle metadata, catalog entities, aliases, explicit relationships, resource-file metadata, supplied chunks, and generated embeddings. Do not crawl raw sources, build snapshots, rechunk, orchestrate full rebuilds/continuous reindexing, deploy, implement GraphRAG/Neo4j, authentication, submission, or moderation. Benchmark questions, labels, gold, human reviews, and model-training artifacts are never catalog or retrieval corpus. [benchmark]
+- **IW-003 (E/P, precedence):** For artifact bytes/fields, use the exact verified artifact and its versioned upstream contract; for persistence intent, use [persistence]; for physical SQL names, types, grants and constraints, use Gateway migrations once present. [system] governs frozen service boundaries; [young] and [router] are review evidence, not migration or model-configuration approval. The explicitly frozen [companion] informs combined-document consistency only; other unfinished author drafts are not authority. This candidate adds only labeled proposals. A conflict blocks the affected capability, not a silently invented mapping. For combined publication, section 12 makes local D1-D5 subordinate to the central decision record; publication or an unapproved recommendation does not resolve any gate.
 
-1. [Persistence class diagram](../sdsc-learning-hub-persistence-class-diagram.md)
-2. [System contracts v0.1](../system-contracts-v0.1.md)
-3. [AIDA router architecture verdict](../aida-router-architecture-verdict.md)
-4. [Young's pipeline and latency review](../young-data-ingestion-and-rag-automation-review.md)
-5. [AIDA V2 benchmark](https://github.com/sdsc-hpc-training-dev/intvid-backend/tree/codex/aida-mvp-benchmark-v2/benchmarks/aida-mvp-v2)
+Two milestones are distinct: **M1**, a disposable, small-fixture local demonstration; **M2**, replacing an existing served snapshot. M1 is required first. M2 requirements describe safety obligations, not a requirement to build or roll out the production lifecycle in M1. Neither is implemented by this documentation change.
 
-If this specification and the class diagram disagree, stop and raise the
-question before creating a second interpretation in code.
+## 2. Input Artifact Contract
 
-## How Srujam, Mio, And Arnav Work Together
+### Identity And Inventory
 
-Srujam owns the official NestJS database migrations. Mio and Arnav own the
-Python worker that fills the imported-data tables.
+**IW-004 (E identity; P external trust binding, [system], [bundle]):** Bind every attempt to expected snapshot ID and archive SHA-256 from an approved, out-of-band input, plus the calculated `snapshot.json` SHA-256. Do not use schema version, filename, S3 ETag, or a checksum supplied only inside the same untrusted archive as proof of artifact identity. Record exact source location, object version if available, worker revision and manifest provenance. A different location for identical verified bytes is not a different dataset.
 
-Mio and Arnav do not need to wait for the complete Gateway implementation. They
-can start the parser, mapping code, Docker environment, and tests immediately.
-They only need the first group of migrations before performing the complete
-database integration test.
+The reviewed fixture is `snapshot-v3-20260805T002229Z`, archive SHA-256 `82b16349c93b88ad31fa8d08d76b2ba2a470c0e327151a6bd695b51967cc6945`, manifest SHA-256 `932f3d83d382b5d74d1062d06b31694f8eeb5fff872ad330a7638377f29a43b2`. The local ZIP has one `snapshot-v3/` wrapper. Its manifest declares `schema_version = catalog-snapshot-v3`, `code_version = ccbdbe4b6a44ca7d16cc04b16ec0d2db73f5361e`, and `code_state.dirty = true`. Preserve this disclosure; the later versioned backend source is not proof of a clean build of these bytes.
 
-Do not maintain a separate permanent SQL schema inside the worker. If a table
-or field is missing, propose the change to Srujam and update the Gateway
-migration. Both applications must use the same schema.
+**IW-005 (E/P, [system], [builder], [bundle]):** Require and parse this artifact-relative inventory. The explicit portal expansion is a verified profile for this fixture/builder, refining the system contract's `portal/*.json`; later schema profiles must declare their required inventory rather than accepting any arbitrary JSON file.
 
-## Tables Required By The Worker
+| Files                                                                                                                                                                 | Role                                                                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `snapshot.json`                                                                                                                                                       | Identity, schema version, provenance, `checksums`, entity/relationship counts, projection manifest paths |
+| `canonical/entities.jsonl`, `relationships.jsonl`, `aliases.jsonl`                                                                                                    | Primary import records                                                                                   |
+| `portal/materials.json`, `resources.json`, `topics.json`, `tools.json`, `systems.json`, `event_series.json`, `event_editions.json`, `filters.json`, `navigation.json` | Cross-check canonical projections, not a second catalog                                                  |
+| `aida/chunks.jsonl`, `citation_index.jsonl`, `material_cards.jsonl`, `embedding_manifest.json`                                                                        | Supplied chunks, evidence linkage, material projection, chunk hashes/embedding declaration               |
 
-The names below are the proposed PostgreSQL table names. Srujam may adjust the
-final naming convention in the first migration, but after that all three
-developers must use the Gateway migrations.
+The actual `snapshot.json.checksums` maps relative paths to SHA-256 and excludes `snapshot.json`. It also lists lineage, crosswalk, reports, and graph files. Those are not additional ingestion tables. Preserve the complete checksum/provenance inventory; do not import graph projections or execute archive contents. `ContentResourceFile` comes from nested canonical resource fields, not a separate resource-files JSONL file.
 
-### 1. Snapshot And Import Tracking
+### Retrieval And Verification Order
 
-| Table                    | Why it exists                                                                                                        |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `catalog_snapshots`      | Identifies the exact snapshot, schema version, S3 object, checksum, record counts, and activation status.            |
-| `snapshot_import_runs`   | Records each attempt to import a snapshot, including start/end time, worker version, counts, and success or failure. |
-| `snapshot_import_errors` | Records useful errors without losing the entire history of an import attempt.                                        |
+**IW-006 (E verification; P transport/archive safeguards):** Execute these gates in order before catalog writes or embedding requests:
 
-These tables make the import reproducible. Saying only "Snapshot v3" is not
-enough; every run must record the exact snapshot ID and SHA-256 checksum.
+1. Validate required configuration and select one explicit artifact. Local mode opens it read-only and copies its bytes to a private local spool; object-store mode reads the exact key/version into that spool. Do not list a bucket to select "latest", upload objects, or follow source URLs in records. Object-store connection/auth configuration stays outside the archive and redacted from output.
+2. Stream/download within configured limits, hash the completed bytes, and compare expected archive SHA-256. Reuse only that verified spool for subsequent reads, preventing a changed local path/object from substituting bytes after verification. Interrupted downloads are not verified artifacts.
+3. Inspect archive names before extraction or member parsing. Permit root layout or one unambiguous wrapper; resolve all member/manifest paths under that root. Reject absolute/drive/UNC paths, `..` traversal, links, duplicate normalized names, case-colliding names, and ambiguous wrappers. Bound member count, compressed/uncompressed bytes and expansion ratio using explicit reviewed settings (D5); no numerical limits are approved here. No extraction into the repository or source tree.
+4. Parse UTF-8 JSON/JSONL using a structured parser, reject duplicate JSON object keys (P), and verify expected ID, supported schema, required files and manifest-referenced paths. Validate the checksum inventory, then hash each listed member and compare it. Missing or mismatched members fail verification, including listed non-imported members. This is integrity verification, not graph ingestion.
+5. Validate record types, references, counts, chunk hashes and projection reconciliation before any serving change. P: ignore blank JSONL lines, reject malformed nonblank lines, and require a checksum entry for every consumed member. Retain the manifest digest independently. Record only verified identities as trusted import metadata.
 
-### 2. Catalog Records
+An unpacked directory is not the established CLI input. Supporting one needs an explicit trust/checksum profile; do not equate a directory hash with the reviewed archive hash. Archive protections and limits above are proposed refinements, not claims about an existing worker.
 
-| Table                    | Snapshot information stored there                                                               |
-| ------------------------ | ----------------------------------------------------------------------------------------------- |
-| `event_series`           | Recurring programs or series.                                                                   |
-| `event_editions`         | Individual dated events or sessions.                                                            |
-| `training_materials`     | The canonical material users see and AIDA recommends.                                           |
-| `content_resources`      | Videos, transcripts, slides, repositories, webpages, and other resources attached to materials. |
-| `content_resource_files` | Selected file paths and hashes belonging to repository resources.                               |
-| `people`                 | Instructors and other named people represented by the snapshot.                                 |
-| `topics`                 | Canonical subject areas used for search and filtering.                                          |
-| `tools`                  | Software tools taught by materials.                                                             |
-| `systems`                | Computing systems such as Expanse.                                                              |
+## 3. Source-To-Target Mapping
 
-### 3. Aliases
+**IW-007 (E/P, [builder], [entity-schema], [bundle], [persistence]):** Map the following verified source fields into the logical model. All target SQL spellings, nullability and storage details await D1 migrations. Common entity `id` maps verbatim to `id`; every imported row is attributable to the enclosing verified snapshot, even when a join/child table obtains that attribution through its parent.
 
-| Table                  | Why it exists                                              |
-| ---------------------- | ---------------------------------------------------------- |
-| `event_series_aliases` | Connects alternative series names to one canonical series. |
-| `topic_aliases`        | Connects alternative topic names to one canonical topic.   |
-| `tool_aliases`         | Connects alternative tool names to one canonical tool.     |
-| `system_aliases`       | Connects alternative system names to one canonical system. |
+| Source                                                          | Logical target (proposed table)                                                                 | Verified source fields -> logical fields                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `snapshot.json`                                                 | `CatalogSnapshot` (`catalog_snapshots`)                                                         | `snapshot_id -> id`; `schema_version -> schemaVersion`; `code_version -> codeVersion`; `code_state.dirty -> sourceTreeDirty`; `pipeline_code_hash -> pipelineCodeHash`; `configuration_hash -> configurationHash`; `curation_version -> curationVersion`; `id_registry_version -> idRegistryVersion`; `dataset_scope -> datasetScope`; `generated_at -> generatedAt`; `checksums -> fileChecksums`; `source_hashes -> sourceHashes`; `entity_counts -> entityCounts`; `relationship_counts -> relationshipCounts`; `projection_manifests -> projectionManifests`; `vocabulary_versions -> vocabularyVersions`. Archive URI/key/hash are transport evidence, not manifest fields. Local paths need an agreed representation distinct from `bucketObjectKey` (D1). |
+| Entities: `EventSeries`                                         | `EventSeries` (`event_series`)                                                                  | `name`, `review_status -> reviewStatus`, `source`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Entities: `EventEdition`                                        | `EventEdition` (`event_editions`)                                                               | `title`, `description`, `start -> startAt`, `end -> endAt`, `format`, `location`, `source_event_id -> sourceEventId`, `source_date_text -> sourceDateText`, `source_time_text -> sourceTimeText`, `source_values.source_file -> sourceFile` when present                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Entities: `Material`                                            | `TrainingMaterial` (`training_materials`)                                                       | `title`, `description`, top-level `source_repository -> sourceRepository`, `source_commit -> sourceCommit`; `material_grouping.method -> groupingMethod`, `.note -> groupingNote`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Entities: `ContentResource`                                     | `ContentResource` (`content_resources`)                                                         | `resource_type -> resourceType`, `title`, `canonical_url -> canonicalUrl`, `original_url -> originalUrl`, `source`, `source_document -> sourceDocument`, `status`, `verification_status -> verificationStatus`, `extraction_status -> extractionStatus`, `content_hash -> contentHash`, `session_key -> sessionKey`, `text_selection_policy -> textSelectionPolicy`, `source_file_count -> sourceFileCount`, `indexed_file_count -> indexedFileCount`, `excluded_file_count -> excludedFileCount`, `excluded_by_reason -> excludedByReason`, `requires_ocr -> requiresOcr`                                                                                                                                                                                       |
+| Resource `file_paths`, `file_hashes`                            | `ContentResourceFile` (`content_resource_files`)                                                | Parent `id -> resourceId`; each ordered `file_paths` entry -> `path`; `file_hashes[path] -> contentHash`. P: zero-based array ordinal -> `position`; require unique paths and matching hash keys. Hash absence/null policy needs D1; do not fetch source files to fill gaps.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Entities: `Person`                                              | `Person` (`people`)                                                                             | `name`, `source`; these are public catalog instructors, not application identities                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Entities: `Topic`, `Tool`, `System`                             | `Topic`, `Tool`, `System` (`topics`, `tools`, `systems`)                                        | `name`, `review_status -> reviewStatus`, `source`; `description` for Topic where supplied                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `canonical/aliases.jsonl`                                       | `EventSeriesAlias`, `TopicAlias`, `ToolAlias`, `SystemAlias` (corresponding `*_aliases`)        | `entity_type` selects the explicit target; `canonical_id` -> target FK; `alias`, `review_status -> reviewStatus`, `source`. No source alias ID exists in this fixture.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `aida/chunks.jsonl`                                             | `ContentChunk` (`content_chunks`)                                                               | `id`, `material_id -> materialId`, `content_resource_id -> contentResourceId`, `event_edition_id -> eventEditionId`, `source_kind -> sourceKind`, `chunk_index -> chunkIndex`, `section`, `text`, `offsets.word_start -> wordStart`, `offsets.word_end -> wordEnd`, `text_hash -> textHash`, `source_hash -> sourceHash`, `source_entity_id -> sourceEntityId`, `source_location -> sourceLocation`, `provenance`, `chunking_version -> chunkingVersion`, `language`                                                                                                                                                                                                                                                                                             |
+| `citation_index.jsonl`, `material_cards.jsonl`, `portal/*.json` | Validation inputs, no duplicate active table                                                    | Citation `chunk_id`, `material_id`, `content_resource_id`, `event_edition_id`, `source_location` agree with chunks; `resource_title` resolves to canonical resource. Card `id` and its `event_edition_ids`, `content_resource_ids`, `topic_ids`, `tool_ids`, `system_ids` reconcile to canonical joins. Portal entity ID sets/navigation reconcile to canonical records. Never write runtime `AidaCitation` from the citation index.                                                                                                                                                                                                                                                                                                                             |
+| `aida/embedding_manifest.json`                                  | Chunk/import configuration evidence; generated `ChunkEmbedding` (`chunk_embeddings`) separately | Verify `embedding_model`, `dimensions`, `embedding_required_during_build`, `chunking`, `text_hashes[].chunk_id/text_hash`. No source vectors exist in the supplied fixture. Generated vector fields follow section 7, not a fabricated snapshot embedding field.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
-Aliases improve search and matching without creating duplicate canonical
-records.
+Worker-generated records have no corresponding snapshot rows: `SnapshotImportRun` (`snapshot_import_runs`) and `SnapshotImportError` (`snapshot_import_errors`) store attempt/outcome evidence from section 9, under the Gateway migration contract. Their IDs are application UUIDs, not canonical IDs from the artifact.
 
-### 4. Relationships
+**IW-008 (E, [relationship-schema], [builder], [persistence]):** Map `canonical/relationships.jsonl` by `type` and verified endpoint entity types, not ID prefixes. `source_id` and `target_id` populate the respective endpoint FKs in the direction below. Each row preserves `id -> relationshipId`, `evidence`, `extraction_method -> extractionMethod`, `review_status -> reviewStatus`, `trust_class -> trustClass`, `source_document -> sourceDocument` and snapshot attribution. Use exactly these explicit joins, never a duplicate active generic relationship table.
 
-| Table                   | Relationship represented                  |
-| ----------------------- | ----------------------------------------- |
-| `event_series_editions` | Event series to individual event edition. |
-| `event_materials`       | Event edition to training material.       |
-| `material_resources`    | Training material to its resources.       |
-| `material_topics`       | Training material to topics.              |
-| `material_tools`        | Training material to tools.               |
-| `material_systems`      | Training material to computing systems.   |
-| `material_instructors`  | Training material to instructors.         |
-
-Use these specific relationship tables. Do not also create a generic table
-containing arbitrary source and target entity types. The specific tables give
-PostgreSQL real foreign keys and make mistakes easier to detect.
-
-Each relationship must preserve the canonical IDs and the available snapshot
-evidence, extraction method, review status, trust class, and source document.
-
-### 5. AIDA Retrieval Data
-
-| Table              | Why it exists                                                                                                                           |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `content_chunks`   | Stores the searchable text supplied by Snapshot v3, including its material/resource IDs, source kind, position, hashes, and provenance. |
-| `chunk_embeddings` | Stores one or more vector representations of each chunk, including the embedding model, dimensions, version, and content hash.          |
-
-Snapshot v3 already supplies the content chunks. Do not silently create a
-different set of chunks during ingestion. Load the supplied chunks first. Any
-future rechunking experiment must have a new, documented chunking version.
-
-Snapshot v3 does not supply embeddings. The worker creates those using the
-agreed embedding configuration and stores them in `chunk_embeddings`.
-
-## Tables The Worker Must Not Manage
-
-The worker does not create or update user activity:
-
-- `users`
-- `auth_identities`
-- `bookmarks`
-- `learning_progress`
-- personal or curated learning paths
-- `aida_conversations`
-- `aida_messages`
-- `aida_answer_runs`
-- `aida_citations`
-- `aida_feedback`
-- `aida_coverage_gaps`
-
-Those records are created by the Gateway while people use the application.
-Keeping this boundary prevents a data import from changing accounts,
-bookmarks, or conversation history.
-
-## First Migration Group
-
-Srujam should provide these tables first because they unblock the initial worker
-demonstration:
-
-1. `catalog_snapshots`
-2. `snapshot_import_runs`
-3. `snapshot_import_errors`
-4. `training_materials`
-5. `content_resources`
-6. `material_resources`
-7. `content_chunks`
-8. `chunk_embeddings`
-
-This is enough to prove the complete path without implementing the entire
-catalog at once.
-
-The migration must also:
-
-- enable the `vector` PostgreSQL extension;
-- create foreign keys between the tables;
-- enforce unique canonical IDs and relationship pairs;
-- enforce one embedding per chunk/model/version combination;
-- add a vector index compatible with the agreed distance function;
-- add indexes for `snapshot_id`, `material_id`, `content_resource_id`, and
-  `source_kind`.
-
-## Suggested Division Of Work
-
-### Mio: Catalog Mapping And Validation
-
-- Read and validate the snapshot manifest.
-- Map Snapshot v3 entities, aliases, and relationships to database rows.
-- Preserve stable IDs and provenance.
-- Compare source counts with imported counts.
-- Report missing references, duplicates, and unsupported records.
-
-### Arnav: Chunks, Embeddings, And Retrieval Test
-
-- Load the supplied Snapshot v3 chunks.
-- Generate embeddings using the shared model and configuration.
-- Store vectors and their model/version information.
-- Implement a small vector-retrieval test filtered by source kind.
-- Confirm that a retrieved chunk resolves back to the correct resource and
-  training material.
-
-### Shared Work
-
-- Python application structure and command-line interface.
-- Docker Compose environment for PostgreSQL/pgvector and the worker.
-- Import-run status and error reporting.
-- Integration tests and short documentation.
-- Coordination with Srujam whenever a migration needs to change.
-
-This split is a starting point, not a wall. Review each other's pull requests
-because the catalog IDs and chunks must connect correctly.
-
-## Import Sequence
-
-The first implementation should follow this order:
-
-1. Receive a local snapshot path or an S3 object reference.
-2. Read the manifest and verify the exact snapshot ID and checksum.
-3. Create a `snapshot_import_runs` record.
-4. Validate the required files and basic record structure.
-5. Load canonical catalog records.
-6. Load aliases and relationships after their referenced records exist.
-7. Load the supplied content chunks.
-8. Generate and store missing embeddings.
-9. Compare source and imported counts and check foreign keys.
-10. Mark the import successful only after all required checks pass.
-11. Leave the previous working data unchanged when the import fails.
-
-The production version will load into staging and activate a validated snapshot
-as one operation. The first local implementation may use an empty development
-database, but it should still record failures and be safe to run again.
-
-## Required Configuration
-
-Do not hide important experiment settings inside Python constants. Record:
-
-- snapshot ID and checksum;
-- worker version;
-- chunking version from the snapshot;
-- embedding provider, model, dimensions, and normalization;
-- vector distance function;
-- retrieval `top_k`;
-- request timeout and retry policy.
-
-Young, Mio, and Arnav should agree on these settings before comparing RAG
-results. The worker should print or save a configuration hash with every run.
-
-## Testing Expectations
-
-### Pull Requests
-
-Use a small fixed fixture and deterministic test embeddings. Pull-request tests
-should not depend on a live NRP service.
-
-Test at least:
-
-- valid manifest and checksum;
-- rejected invalid checksum;
-- correct material/resource relationship;
-- rejected missing foreign key;
-- chunk loading without accidental rechunking;
-- repeat import without duplicate rows;
-- failure recorded in `snapshot_import_errors`;
-- vector query returning the expected chunk and canonical IDs.
-
-### Manual Or Nightly Test
-
-Use the agreed NRP embedding model on a small documented subset. Record provider
-latency and total ingestion time separately from local database time.
-
-## Definition Of Done For The First Demonstration
-
-The first worker milestone is complete when the team can demonstrate:
-
-1. PostgreSQL with `pgvector` starts locally in Docker.
-2. The Gateway migrations apply to an empty database.
-3. The Python worker imports the approved small Snapshot v3 fixture.
-4. Source and imported counts match for the selected records.
-5. A second run does not create duplicates.
-6. A vector query returns the expected content chunk.
-7. The chunk links back to a real content resource and training material using
-   the canonical IDs.
-8. An invalid snapshot fails clearly without damaging the previous data.
-9. The repository contains a short command sequence another team member can
-   run without private knowledge.
-
-Do not attempt to ingest the entire snapshot or optimize performance before
-this small demonstration works reliably.
+| Source type      | Source -> target direction  | Logical join (proposed table)                                                                         |
+| ---------------- | --------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `INSTANCE_OF`    | EventEdition -> EventSeries | `EventSeriesEdition` (`event_series_editions`); source is `eventEditionId`, target is `eventSeriesId` |
+| `HAS_MATERIAL`   | EventEdition -> Material    | `EventMaterial` (`event_materials`)                                                                   |
+| `HAS_RESOURCE`   | Material -> ContentResource | `MaterialResource` (`material_resources`)                                                             |
+| `COVERS_TOPIC`   | Material -> Topic           | `MaterialTopic` (`material_topics`)                                                                   |
+| `TEACHES_TOOL`   | Material -> Tool            | `MaterialTool` (`material_tools`)                                                                     |
+| `TARGETS_SYSTEM` | Material -> System          | `MaterialSystem` (`material_systems`)                                                                 |
+| `TAUGHT_BY`      | Material -> Person          | `MaterialInstructor` (`material_instructors`)                                                         |
+
+The upstream schema also allows `PREREQUISITE_OF`, `SUPERSEDED_BY`, `RELATED_TO`; this exact fixture contains none. **P:** fail an import containing these until explicit mappings/migrations or an approved exclusion contract exists (D1). Do not drop them while reporting a complete import.
+
+**IW-009 (E/P, type and null rules):** Keep IDs as opaque, case-sensitive strings, never integers, UUID replacements, inferred types, or recomputed registry IDs. Upstream v3 regex validation may check published ID syntax; it does not authorize deriving one ID/type from another. Reject unknown entity/resource/chunk types and malformed required fields before writes. Resource types and chunk kinds correspond to [persistence] enums; source lowercase strings and diagram uppercase names need an explicit migration adapter, not assumed SQL enum case.
+
+Preserve optional unknowns as null, not invented titles, dates, URLs, freshness/publication fields, hashes, or empty-string sentinels. Mandatory source fields remain mandatory even if the target permits null. In particular, [chunk-schema] requires `event_edition_id`; the diagram's optional event FK does not loosen this v3 profile. Preserve event raw date/time values and `tri_state` provenance in the immutable artifact; do not turn `verified_none` into a guessed value. Additional source-only fields remain recoverable by archive/hash and record ID, not copied indiscriminately into serving rows. Source path/location strings are provenance, never instructions to read the host filesystem. Resource content hashes are opaque source hashes and can be repository commits; only fields explicitly specified as SHA-256 receive that validation.
+
+## 4. Database Privileges And Migration Dependency
+
+**IW-010 (E/P, [system], [persistence]):** Before data writes, check the Gateway migration revision and required tables, FKs, unique constraints, pgvector extension, compatible embedding storage, and importer grants. Missing/incompatible schema fails closed. The migration identity, not the worker, installs extensions/indexes or creates staging objects. [system] section 6.2's index-building step belongs to the migration/approved maintenance boundary, not importer DDL. ORM/migration tooling remains undecided.
+
+| Logical area                                                                       | Importer reads                                            | Importer writes                                                            | DDL / other restrictions                                                            |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Snapshot/import lifecycle and errors                                               | Import metadata needed for verification/recovery          | Insert attempt/error evidence; update permitted attempt/candidate states   | No deletion of history; no arbitrary status promotion                               |
+| Catalog, aliases, joins, resource-file metadata                                    | Existing/candidate imported rows for ID/FK/reuse checks   | M1 isolated fixture rows; M2 candidate rows only until approved activation | No unscoped deletion, truncate, or generic active relationship table                |
+| ContentChunk / ChunkEmbedding                                                      | Imported chunks and compatible embedding metadata/vectors | Candidate chunks and generated embeddings                                  | No rewriting supplied chunks or in-place changes to served vectors                  |
+| Migration ledger / database capability metadata                                    | Minimum compatibility-check access                        | None                                                                       | No migration execution, extension/index/schema creation, role changes or ownership  |
+| Users, auth identities, sessions, roles; bookmarks, progress, personal paths/items | None                                                      | None                                                                       | Deny all, including indirect writes through unsafe cascades/functions               |
+| Conversations, messages, answer runs, runtime citations, feedback, coverage gaps   | None                                                      | None                                                                       | Citation-index validation does not grant runtime-citation access                    |
+| Curated paths/items                                                                | None under this contract                                  | None                                                                       | Population ownership unresolved (D4); not assumed runtime-created or importer-owned |
+
+Read/write boundaries are established; candidate scoping and no-history-deletion details are proposed refinements. **IW-011 (P):** Enforce grants in Gateway migrations, including no owner/superuser/bypass identity, inherited personal-data access, or ability to assume a broader role. FKs may enforce integrity internally without granting the worker SELECT on personal tables. M2 activation and abandoned-candidate cleanup need a reviewed narrow mechanism (D2), not broad DELETE or privileged DDL. Provision staging through Gateway migrations in the same database.
+
+## 5. Execution Contract
+
+**IW-012 (E/P, [system], [persistence]):** Execute these stages and emit section 9 evidence. Network embedding work never runs inside a long-lived database transaction.
+
+1. Resolve/validate configuration; acquire/verify the artifact (IW-004 through IW-006). On early failure, emit a local redacted outcome even when no database run can be recorded.
+2. Check migration/capability/grant compatibility (IW-010). Record a new attempt and verified source/configuration identity. Check prior identity bindings and candidate ownership before any data modification.
+3. Parse import inputs; reconcile counts, uniqueness, aliases, relationship directions/FKs, resource-file membership, chunk hashes and citation/card/portal projections. No serving change or embedding call precedes these gates.
+4. Establish M1's isolated disposable target or M2's non-serving candidate using migration-authorized isolation. Persist snapshot/import metadata first, then entity parents, aliases/resource files/explicit joins, then chunks. Keep FKs enforced; do not disable constraints to get an import through.
+5. Build bounded embedding batches from verified supplied chunk text. Call the approved provider outside DB transactions; validate response item association, count, model identity, shape and values. Commit only validated batch results to the candidate in short transactions, preserving completion/reuse evidence.
+6. Reconcile committed candidate counts with verified source counts, expected embeddings, FKs and configuration. Run deterministic catalog and source-filtered vector smoke checks. No skipped invalid row may be hidden in a success count.
+7. For M1, expose the complete fixture only after all checks pass, with the app stopped or disconnected during loading. For M2, use the reviewed activation boundary only after validation and authorization. Persist completion evidence and resulting snapshot/attempt states; a failed gate produces a non-success outcome.
+
+**IW-013 (E small demonstration; P fixture profile, M1):** The small-fixture demonstration may use an empty disposable database with no prior served data. It still needs safe re-run/interruption behavior. A subset must be a separately checksummed fixture with explicit selected IDs/counts and parent archive identity; it cannot pretend to be the complete reviewed archive. Select whole existing chunk records and a referentially closed set of parents/joins; do not rewrite text, IDs or chunking metadata. Include two source kinds for filtered lookup and the shared-resource case in section 10. Gate app access until completion; production switching is not required for this isolated test.
+
+**IW-014 (E safety; D2 design, M2):** A failed candidate must not damage or replace previously served data. [persistence] proposes staging plus transactional reconciliation and at most one ACTIVE snapshot; [system] also mentions snapshot-scoped rows. These are not interchangeable implementations with already-proven atomicity. Before replacement, decide physical keying, candidate isolation, activation authorization/locking, transaction boundaries, recovery and stable-ID reconciliation. Globally unique canonical IDs prevent naively inserting the same IDs into active tables under a new `snapshotId`.
+
+Preserve catalog records referenced by learner/history FKs without granting importer access to personal records. Define how retained stable IDs are excluded from the new active retrieval/catalog projection. Prove readers cannot observe mixed/partial catalog and embedding generations at activation and that a lost connection during commit has a recoverable outcome. Backups do not make destructive startup or unsafe activation acceptable. M2 remains blocked until D1/D2 have migration-backed tests; a boolean flag or "atomic" comment is insufficient.
+
+## 6. Idempotency, Retry And Recovery
+
+- **IW-015 (E, [system]):** Reuse of a snapshot ID with different verified archive bytes fails closed, even if schema/counts agree. Same ID/hash/configuration re-runs must not duplicate catalog, join, alias, resource-file, chunk or embedding rows. A failed re-run of an active artifact must not mark it REJECTED or alter served rows. Attempts are separate from artifact state.
+- **IW-016 (P):** Reject duplicate source entity/chunk/relationship IDs, explicit join pairs and resource-file paths before mutation, including byte-identical repeated records. Distinct chunk IDs are not duplicates merely because text/hash/resource/index match. Alias normalization/collision keys need migration authority (D1); preserve original alias text, failing ambiguous mappings rather than picking a target. Reconciliation is not an unchecked upsert hiding conflicting content.
+- **IW-017 (E reuse; P identity refinement):** Record both full redacted run-configuration hash and semantic embedding-configuration identity. Semantic identity binds model/provider revision, dimensions, normalization, text-input policy and relevant algorithm versions; transport location and evaluation `top_k` do not change dataset/vector identity. Pin hash serialization/versioning (D3/D5). Changes to vector-producing inputs invalidate reuse; reuse only after checking chunk ID, exact text hash and compatible configuration. Changes solely to batch size/timeouts do not invalidate vectors. A new distance function needs compatible retrieval/index configuration even when vector bytes are reusable.
+- **IW-018 (P):** On partial provider failure, retain only validated candidate results and identify missing/failed chunk IDs. Do not succeed or expose incomplete candidates. Retry only recoverable transport/provider failures under a finite configured policy; malformed responses, identity conflicts, checksum, schema and reference errors require correction, not blind retry. Never substitute zero vectors. Provider request deduplication is not guaranteed: a timeout may repeat computation but must not duplicate persisted embeddings.
+- **IW-019 (P; D2):** After interruption, inspect durable attempt/candidate state and reverify source/configuration before resuming missing work or explicitly abandoning a candidate. Record recovered/linked attempts without adding a persisted status enum. Do not label an uncertain commit failed and blindly replay activation. Reject or serialize concurrent imports using a reviewed database-enforced lock/ownership rule, including multi-process starts and crashed ownership recovery. M1 may be operationally single-writer but cannot claim concurrent-import safety until tested.
+
+## 7. Chunk, Embedding And Retrieval Invariants
+
+**IW-020 (E, [bundle], [chunk-schema]):** Preserve each chunk's ID, exact decoded text, offsets, index, text/source hashes, canonical references, source kind/location, language, provenance and chunking version. Verify `text_hash` using the upstream SHA-256-over-UTF-8 text convention; no trimming, whitespace normalization, translation, splitting or merging. The fixture declares `word-window-v2`, `chunk_words = 1200`, `overlap_words = 100`, `unit = words`. [young]'s token terminology and upstream configuration names do not redefine those stored units. They are provenance, not instructions to rerun chunking.
+
+**IW-021 (E/P, [system], [bundle], [router]):** The supplied manifest has `embedding_model = not-generated`, `dimensions = null`, and `embedding_required_during_build = false`. Generate embeddings using separately agreed configuration; these source declarations are not runtime settings. Store each vector with canonical chunk ID, supplied text hash (`ChunkEmbedding.contentHash`), requested/resolved model identity, revision or explicit revision-unavailable state, dimensions, normalization, text-input policy/version, and embedding configuration/version identity. Metadata beyond the diagram's fields needs D1/D3 storage approval.
+
+Validate a one-dimensional array of exactly the configured number of finite numeric elements, correct response cardinality and request-to-chunk association. Reject NaN/infinity, wrong shapes/dimensions, missing/duplicate/reordered item associations that cannot be resolved, and incompatible returned model identity. Zero-norm handling follows the approved normalization/distance contract; never normalize a zero vector or silently accept it where the operator requires nonzero norm. No numerical tolerance/rejection threshold is approved here.
+
+**IW-022 (E/P):** Gateway query and corpus embeddings must share an approved compatible model revision, dimensions and preprocessing/normalization contract. Record distance metric/operator and index/storage representation used for lookup. The router review's `qwen3-embedding`, 4,096-dimensional L2-normalized classifier input is evidence about that classifier, **not approval of corpus embedding configuration or a pgvector index**. Migrations must demonstrate support for the chosen dimension/representation; do not select `vector`, `halfvec`, HNSW, IVFFlat, an ORM, or an operator by assumption. An exact scan can prove small-fixture lookup; production indexing/precision remains D3.
+
+**IW-023 (E scope; P explicit general set; D4/D-10 gate, [system], [young], [benchmark], [companion]):** Retrieval tests query only the served snapshot and compatible embedding configuration. `transcript_rag` requires valid selected-recording canonical material/resource scope together with `source_kind = transcript`; active snapshot and compatible configuration remain independently required filters. Missing, conflicting or unresolved recording scope must take the approved controlled outcome under [central D-10](../contracts/decisions-needed.md#D-10), never implicit unscoped transcript search. Until that outcome is approved, the affected behavior remains implementation-gated; this specification does not choose clarification, abstention or an error. D-10 also gates the video-to-transcript resource association: video/resource ID equality or guessed material membership is not an approved association rule. Test supplied valid scope only through the agreed association, and do not widen it when resolution fails.
+
+This candidate's `general_rag` set is `catalog_metadata`, `repository_session`, `slides`, consistent with reviewed V2 non-transcript behavior; do not silently broaden [system]'s ambiguous "general-purpose" wording (D4/D-10). Apply scope/source/snapshot/model filters during candidate selection, not only after selecting global top results. `catalog_api` uses relational IDs/joins without embeddings or LLM retrieval. `abstain` adds no import/retrieval corpus.
+
+**IW-024 (E, [system], [benchmark]):** Retrieved chunks resolve to canonical materials/resources through imported joins, retaining snapshot/configuration identity and source location as evidence. Do not substitute title matching or infer missing relationships from ID shapes. Citation-index rows validate linkage; Gateway alone creates runtime citations from evidence actually used. Word offsets are not transcript timestamps: no invented `start_seconds`, `end_seconds`, or exact-moment video links. Resource URLs may be null; canonical IDs still resolve, and the importer must not fabricate a URL.
+
+## 8. Configuration Contract
+
+**IW-025 (E settings; P key layout):** These are semantic keys, not a finalized CLI/env API. Validate types/required settings before side effects and record resolved non-secret values. No hidden runtime defaults or numerical retry/batching thresholds are approved. Unresolved required settings block only the capability using them; M1 declares test values without contacting NRP.
+
+| Key                                                                             | Type / source                                                                | Required / purpose / approved value                                                                            |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `source`                                                                        | Local ZIP path or S3 URI; operator                                           | Always; exact artifact. `--source` is established in [system].                                                 |
+| `expected_snapshot_id`, `expected_archive_sha256`                               | String and 64-hex digest; approved descriptor                                | Always; out-of-band identity. Section 2 fixture values are not universal defaults.                             |
+| `manifest_sha256`, `source_schema_version`, `source_chunking`                   | Digest, string, object; verified artifact                                    | Always derived/recorded; profile/provenance, not chunk-generation controls.                                    |
+| `worker_revision`, `mapping_version`, `required_migration_revision`             | Strings; build/reviewed compatibility profile                                | Always; executable/mapping/schema identity. Mapping/migration releases not yet present (D1).                   |
+| `database_connection_ref`                                                       | Secret reference; protected local config                                     | Required for import; restricted role only, never log/store resolved DSN/password.                              |
+| `object_store_endpoint`, `object_version`, `object_store_auth_ref`              | URI, optional string, secret reference; environment                          | Conditional for S3; provider endpoint/auth/version requirements explicit. No credentials in `source`.          |
+| `embedding_provider`, `embedding_endpoint`, `embedding_auth_ref`                | Strings/URI/secret reference; agreed runtime config                          | Required for real generation; no approved importer defaults. Synthetic provider only in isolated tests.        |
+| `embedding_model`, `embedding_revision`, `embedding_dimensions`                 | Strings and positive integer; approved model contract                        | Required for generation/lookup; D3. Record unavailable revision explicitly with reviewed drift/reuse policy.   |
+| `embedding_normalization`, `embedding_input_policy`, `embedding_config_version` | Versioned names/objects; shared worker/Gateway contract                      | Required; unchanged chunk text input. Hash/canonicalization and zero-norm/tolerance behavior unresolved D3.    |
+| `distance_metric`, `vector_representation`, `retrieval_config_version`          | Versioned names; migration/retrieval agreement                               | Required for lookup; no approved distance/type/index choice (D3).                                              |
+| `embedding_batch_size`, `embedding_concurrency`                                 | Positive integers; measured/reviewed settings                                | Required for real generation; bounded, no defaults (D5).                                                       |
+| `source_timeout`, `embedding_timeout`, `database_timeout`, `retry_policy`       | Positive durations with units; finite attempts/backoff/classification object | Required per used stage; D5. Benchmark observations are not worker defaults.                                   |
+| `archive_limits`, `scratch_location`                                            | Positive size/count/ratio limits; private path                               | Required for archive processing; explicit limits/cleanup policy, D5.                                           |
+| `execution_mode`, `fixture_descriptor`, `activation_policy_ref`                 | Versioned mode/descriptor references; operator/test config                   | Explicit M1 or M2; M1 subset IDs/counts/parent hash; M2 approved D2 policy. No implicit production activation. |
+| `run_config_hash`, `embedding_config_hash`, `report_destination`                | Derived digests and local destination                                        | Required; versioned redacted serialization and durable outcome location (D3/D5).                               |
+
+**IW-026 (E, [young]):** Keep retrieval-evaluation `top_k`, query IDs, scoring thresholds, router settings, completion model and generation settings in separate evaluation configuration. They are not import parameters and must not change chunk identity or cause re-embedding. [young] records top-k 5 and batch 64 for an experiment, not approved ingestion defaults. The pinned benchmark branch's older `experiments/nrp_snapshot_quality/config.json` still names five strategies including GraphRAG; it is not the four-route importer/MVP configuration.
+
+## 9. Outcomes And Errors
+
+**IW-027 (E enums; D2 transitions):** Preserve [persistence]'s logical snapshot enum `RECEIVED | VALIDATED | ACTIVE | REJECTED | RETIRED` and attempt enum `PENDING | RUNNING | SUCCEEDED | FAILED`. [system] section 3 spells the same values lowercase; migration/API adapters decide casing. Section 6.2's `ready` is **not** a declared enum member. Do not add it. Record validation separately from activation; D2 resolves transition timing and whether a validated-but-not-activated run is SUCCEEDED in its execution mode. Attempt failure does not itself reject a previously validated/active artifact. Never claim activation solely from attempt success.
+
+**IW-028 (E evidence; P report schema):** Emit a versioned local outcome even if DB persistence fails. This is a **proposed logical report schema**, not new SQL names or an existing public API:
+
+| Field                                                                                                        | Type and constraint                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `report_version`, `worker_revision`, `mapping_version`, `execution_mode`                                     | Nonempty strings; report/execution provenance                                                                                                                                                              |
+| `attempt_id`, `snapshot_id`, `archive_sha256`, `manifest_sha256`, `run_config_hash`, `embedding_config_hash` | Strings; nullable only if not established. Generated attempt IDs follow application UUID convention. Unverified claimed identity is not trusted identity.                                                  |
+| `source_reference`, `migration_revision`                                                                     | Redacted location and revision, or null if unavailable                                                                                                                                                     |
+| `import_status`, `snapshot_status`                                                                           | Declared logical enums above; snapshot status null if unregistered/unknown. Wire casing explicit.                                                                                                          |
+| `validation_passed`, `activation_committed`                                                                  | Booleans; false until proven. An unknown activation result uses false plus explicit recovery error: unconfirmed is not proof of rollback.                                                                  |
+| `started_at`, `completed_at`                                                                                 | UTC ISO 8601 strings; completion nullable on interim reports                                                                                                                                               |
+| `counts`                                                                                                     | Nonnegative integers by entity/relationship/source kind and source/imported/inserted/reused/rejected; separate chunks, expected/generated/reused/failed embeddings, warnings/errors                        |
+| `duration_ms`                                                                                                | Separate source retrieval, source validation, embedding calls including retries, DB work, total wall time; null for unmeasured stage, not fabricated zero. Overlapping measurements need not sum to total. |
+| `errors`, `warnings`, `validation_report_ref`                                                                | Arrays of bounded redacted records and durable evidence reference; empty arrays allowed                                                                                                                    |
+
+**IW-029 (E error fields; P categories/redaction):** Each error carries `stage`, `errorCode`, safe `message`, and nullable `entityType`, `sourceRecordId`, artifact-relative `sourcePath`, `details`, plus attempt identity/time when available, matching logical `SnapshotImportError`. Proposed additions: line number, retryability, related decision ID. Never emit raw DSNs, credentials, signed URL queries, auth headers, complete provider responses, chunk text, or full sensitive payloads. Sanitize DB diagnostics before logging; do not rely on log viewers to redact them.
+
+Proposed stable categories: `CONFIGURATION_INVALID`, `SOURCE_UNAVAILABLE`, `ARTIFACT_CHECKSUM_MISMATCH`, `ARCHIVE_UNSAFE`, `MANIFEST_INVALID`, `SCHEMA_INCOMPATIBLE`, `UNSUPPORTED_MAPPING`, `DUPLICATE_RECORD`, `REFERENCE_INVALID`, `PROJECTION_MISMATCH`, `CHUNK_HASH_MISMATCH`, `ARTIFACT_ID_CONFLICT`, `EMBEDDING_UNAVAILABLE`, `EMBEDDING_INCOMPATIBLE`, `EMBEDDING_MALFORMED`, `DATABASE_UNAVAILABLE`, `DATABASE_WRITE_FAILED`, `PRIVILEGE_DENIED`, `IMPORT_CONFLICT`, `INTERRUPTED`, `ACTIVATION_UNCONFIRMED`. Exact serialization is candidate behavior, not an established enum. Terminal failure returns nonzero process exit; success requires the mode's completed gates. Log/DB failure must not erase the local report or falsely report success.
+
+## 10. Deterministic Acceptance Matrix
+
+**IW-030 (E/P, acceptance):** Freeze a small fixture descriptor, exact bytes/checksums, expected canonical IDs/joins/counts, and deterministic synthetic embedding/query vectors before implementing tests. Synthetic vectors have a distinct test-only model identity and declared compatible dimension/distance. Assert exact IDs with uniquely ordered expected results; no arbitrary tie, live model, timing or quality threshold is needed. These are required implementation tests, **not tests executed by this documentation task**. M2 tests await D1/D2/D3; M1 must explicitly refuse unsupported replacement.
+
+| Test / requirement                                   | Fixture or action                                                                                                                                                                                      | Expected DB/output assertion                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T01 / IW-001, IW-005, IW-007, IW-008, IW-012, IW-013 | Closed M1 fixture after migrations                                                                                                                                                                     | Exact descriptor counts/IDs/fields/joins; parent FKs valid; one embedding per required chunk/config; completion evidence; no DDL/duplicate projection tables                                                                                                                                                                                                                                                                           |
+| T02 / IW-004, IW-006, IW-029                         | Corrupt archive; separately corrupt member and update only outer digest; omit portal file; unsafe ZIP path; duplicate JSON key                                                                         | Verification failure; no catalog/embedding writes or model calls; local redacted failure even without DB                                                                                                                                                                                                                                                                                                                               |
+| T03 / IW-008, IW-009, IW-012                         | Missing/wrong-type relationship target, missing mandatory chunk event ID, unknown enum, unsupported extra relationship type                                                                            | Reference/schema/mapping failure before writes; no guessed IDs or dropped joins                                                                                                                                                                                                                                                                                                                                                        |
+| T04 / IW-007, IW-009, IW-024                         | Alter citation/card/portal mapping with valid checksums; null optional URL; repository hash is commit string                                                                                           | Projection mismatch fails; legitimate null/source hash preserved; no source fetch/fabricated URL                                                                                                                                                                                                                                                                                                                                       |
+| T05 / IW-015, IW-017                                 | Same bytes/config twice, including another source location                                                                                                                                             | No extra catalog/join/alias/file/chunk/vector rows; separate attempts; second run reuses valid vectors without provider calls                                                                                                                                                                                                                                                                                                          |
+| T06 / IW-015                                         | Same snapshot ID, different archive/checksum                                                                                                                                                           | `ARTIFACT_ID_CONFLICT`; served data/status untouched                                                                                                                                                                                                                                                                                                                                                                                   |
+| T07 / IW-016                                         | Duplicate ID/pair/path; alias normalization collision; two distinct shared-resource chunks                                                                                                             | Invalid duplicates fail. Chunks `70000317` and `70000491` both survive with materials `20000041` and `20000066`; both use resource `30000158`, index 0, `word-window-v2` and identical text hash. Diagram composite uniqueness must not collapse/reject them (D1).                                                                                                                                                                     |
+| T08 / IW-018, IW-019, IW-028                         | Interrupt after catalog load/one embedding batch; retry same/different config                                                                                                                          | No incomplete served candidate; reuse matching vectors only; recover missing work with linked attempts; never mix configurations                                                                                                                                                                                                                                                                                                       |
+| T09 / IW-020, IW-021                                 | Alter text without hash; attempt normalization/rechunking                                                                                                                                              | Hash error for altered input; valid import round-trips IDs/text/hashes/offsets/provenance exactly; embedding input equals supplied text                                                                                                                                                                                                                                                                                                |
+| T10 / IW-017, IW-018, IW-021, IW-022                 | Wrong dimensions/model, nested array, NaN/infinity, missing item, ambiguous duplicate association, invalid zero norm; provider timeout                                                                 | No invalid vectors persist; controlled malformed/incompatible/unavailable errors; no success/activation with missing embeddings; no stale reuse                                                                                                                                                                                                                                                                                        |
+| T11 / IW-010, IW-011                                 | Missing migration/extension; importer attempts forbidden SELECT/write, DDL and role escalation                                                                                                         | Compatibility failure before writes; DB denies each prohibited operation; allowed catalog/lifecycle operations succeed                                                                                                                                                                                                                                                                                                                 |
+| T12 / IW-002, IW-023, IW-024, IW-026                 | Known vectors with transcript/general filters, valid recording association, wrong model/snapshot; missing/conflicting/unresolved recording scope or video-to-transcript association; relational lookup | Exact IDs only in valid scope with transcript kind, active snapshot and compatible configuration independently enforced. Missing/conflicting/unresolved scope or association never triggers unscoped transcript search; assert the approved D-10 controlled outcome once decided, otherwise report that behavior gated, not passed. No guessed video/transcript ID equality. Catalog works without model calls; benchmark/gold absent. |
+| T13 / IW-014, IW-019, IW-027                         | M2: served A, fail candidate B in validation/embedding/activation; disconnect at commit                                                                                                                | A unchanged on pre-commit failure; reconcile uncertain commit without assumptions; readers see coherent old/new data. M1 instead rejects replacement before writes.                                                                                                                                                                                                                                                                    |
+| T14 / IW-014, IW-019                                 | M2 concurrent imports/activations; removal of ID referenced by protected learner/history rows                                                                                                          | Serialize/reject second writer; at most one active snapshot; personal rows/FKs survive; no personal SELECT grants                                                                                                                                                                                                                                                                                                                      |
+| T15 / IW-027, IW-028, IW-029                         | Failed re-run of active artifact; unavailable DB; synthetic secret markers in errors                                                                                                                   | Artifact not demoted; no `ready` enum; durable local failure report includes counts/durations without secret markers                                                                                                                                                                                                                                                                                                                   |
+| T16 / IW-031, IW-032                                 | Local lifecycle in section 11                                                                                                                                                                          | Rows/vector/catalog results survive app/DB restart; explicit isolated reset restores compatible baseline                                                                                                                                                                                                                                                                                                                               |
+| T17 / IW-003, IW-025, IW-030                         | Missing required config/undecided compatibility profile; inspect frozen test descriptor                                                                                                                | Fail before affected side effects; no guessed defaults; fixture/test identities and acceptance assertions are versioned                                                                                                                                                                                                                                                                                                                |
+
+Fixture-only audit reference: 530 materials, 1,423 resources, 520 editions, 6 series, 49 people, 21 topics, 36 tools, 5 systems; 4,379 relationships; 144 aliases; 698 selected file entries across 221 resources; 2,291 chunks (533 catalog metadata, 444 repository session, 153 slides, 1,161 transcript). [bundle] Future imports compare their own verified counts/profile. `snapshot.json` has entity/relationship counts but no single authoritative chunk-count field; derive chunk count from parsed rows and reconcile against `embedding_manifest.text_hashes` and citation-index membership. Do not invent `snapshot.json.chunk_count`.
+
+## 11. Local Lifecycle Acceptance
+
+**IW-031 (E, scope; P deterministic procedure):** Supply reproducible local commands with implementation, once migration/worker commands exist. The current starter has neither, so no fictional ingestion command is provided here. Demonstrate in order:
+
+1. Start empty local PostgreSQL with pgvector and persistent storage in an isolated test environment.
+2. Run Gateway migrations with migration identity; record revision/grants, then use restricted importer identity.
+3. Import the frozen small fixture with explicitly synthetic embeddings. Check exact counts, joins, vector result and catalog lookup. Expose the app only after M1 gates pass.
+4. Restart the app normally without import/reset; repeat catalog/vector assertions and counts.
+5. Restart the database retaining its storage, reconnect the app, and repeat assertions. No table drops, reloads or embedding calls are part of either normal restart.
+6. Perform a separately named, explicit test-only reset/restore against the verified disposable target, using administrative test identity, not the worker. Reapply Gateway migrations and fixture, or restore a demonstrably compatible schema/data backup; verify baseline and migration revision.
+
+**IW-032 (E, [system], previous guide):** Migrations create/evolve schema; ingestion fills data; normal startup reconnects. Do not use destructive schema synchronization, import-on-every-start, or backup/restore as ordinary startup. PR checks use local fixtures/synthetic vectors without live NRP, S3 or credentials. Synthetic tests prove storage/mapping/query mechanics, not live semantic quality. A separately authorized manual measured model check may later record exact artifact/subset, model/configuration and separate source/provider/DB durations; it is not a PR prerequisite and was not run for this document.
+
+## 12. Decision Register And Sources
+
+Only the affected capability is blocked; parser work and isolated tests need not await production decisions. Proposed dispositions are **not approvals**. D1-D5 below are specialist concern labels, not a second approval register and not aliases for similarly numbered D-01 through D-12. The [central register][central-decisions] records combined-package decisions; this crosswalk preserves the full ingestion gate coverage.
+
+| Specialist concern                   | Central decision coverage                                                                                | Closure evidence required                                                                                                                                                                                                                                                  |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1: Migration/mapping                | [D-05](../contracts/decisions-needed.md#D-05)                                                            | Approved mapping/schema/grants and disposition of the chunk-key conflict, with applicable migration/fixture tests                                                                                                                                                          |
+| D2: Lifecycle/replacement            | [D-01](../contracts/decisions-needed.md#D-01), [D-05](../contracts/decisions-needed.md#D-05)             | Status/authorization/visibility policy plus migration-backed isolation, retention and recovery semantics for the affected M1/M2 capability                                                                                                                                 |
+| D3: Embedding compatibility          | [D-09](../contracts/decisions-needed.md#D-09), [D-05](../contracts/decisions-needed.md#D-05) for storage | Shared semantic/query configuration and compatible storage/constraint/index contract; one decision alone does not establish both                                                                                                                                           |
+| D4: Product boundaries               | [D-10](../contracts/decisions-needed.md#D-10), [D-12](../contracts/decisions-needed.md#D-12)             | General allowlist; transcript scope, video-to-transcript association and controlled missing/conflicting/unresolved-scope outcome; separately curated-path source/ownership                                                                                                 |
+| D5: Bounded operation/report profile | [D-05](../contracts/decisions-needed.md#D-05), [D-09](../contracts/decisions-needed.md#D-09)             | Explicit archive limits, scratch cleanup, import report/config serialization and DB/source operational policy under D-05; embedding operation/semantic configuration under D-09. Provider batching/retry approval alone does not close the remaining archive/report gates. |
+
+Closure propagates per concern, not by matching a number or marking a whole row done. The central approval record must identify the chosen values/behavior, owner/reviewer, local D label and affected `IW-*`/test IDs, and any migration/configuration evidence. Update the central record, this specialist text and affected schema/tests together before treating that capability as unblocked. Partial closure leaves all unmapped or unapproved subconcerns open. Approved central decisions govern the policy represented here; actual migrations still govern physical DB shape. If either conflicts with this spec or source evidence, keep the affected capability blocked until documents/migrations/tests are reconciled, rather than silently overriding a safety invariant. No choice is approved by this crosswalk.
+
+| Decision                             | Evidence / required resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Gate                                                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| D1: Migration/mapping authority      | No migrations exist. Resolve physical names/types/nulls/grants, local source-reference storage, alias normalization, resource-file position/hash policy and extra relationship types. Critically, the fixture has **96 repeated groups** under unique `(contentResourceId, chunkIndex, chunkingVersion, textHash)`: distinct chunks share resources across materials/events. Review removing/extending that constraint while preserving all canonical IDs. Align embedding metadata/uniqueness with semantic configuration. Do not reject the supplied fixture to satisfy a mistaken target constraint. | DB integration; shared-resource acceptance before full v3 import                                        |
+| D2: Lifecycle/replacement            | Resolve `ready` versus VALIDATED/ACTIVE, enum serialization, success-without-activation, candidate isolation/global IDs, authorization/locking, interrupted/uncertain commits, referenced-ID retention. Require migration-backed tests, not asserted atomic upsert. M1 remains a disconnected disposable demonstration until M2 exists.                                                                                                                                                                                                                                                                 | M2 replacement; M1 needs explicit attempt/validation semantics                                          |
+| D3: Embedding compatibility          | Approve corpus/query provider/model/revision policy, dimension, normalization/zero norm, text-input/config hashing, reuse identity, distance and compatible pgvector storage/index. Router settings are not corpus settings. No dimension/index pairing approved here.                                                                                                                                                                                                                                                                                                                                  | Real generation/lookup; M1 declares synthetic values                                                    |
+| D4: Product boundaries               | Confirm general allowlist, selected-recording scope, video-to-transcript association and controlled outcome for missing/conflicting/unresolved context under central D-10. Never widen transcript search implicitly. Curated paths have no verified source/owner; the old guide incorrectly treated them as necessarily runtime-created. Keep outside worker grants pending central D-12.                                                                                                                                                                                                               | General/transcript scope and association/fallback policy; curated paths excluded, not an import blocker |
+| D5: Bounded operation/report profile | Approve timeouts, batch/concurrency/retry/size limits, scratch cleanup, versioned report/config serialization. Use measured checks for real-provider settings, not inherited benchmark constants.                                                                                                                                                                                                                                                                                                                                                                                                       | Archive/runtime implementation; no live calls authorized here                                           |
+
+**Sources (frozen evidence, not concurrent drafts):**
+
+- Combined-review exception: [companion] AIDA-03 and [central-decisions] at `2b076a74028a85f14ffb1ff72ac9d4012c33e944` were read to align transcript scope and decision ownership. Their intended combined relative paths were verified against that frozen companion tree, not claimed to exist in this standalone worktree. Later central amendments and combined-package QA belong to the coordinator. See the [review dispositions](review/ingestion-worker-review-dispositions.md) for exact correction scope.
+- [Persistence model][persistence], [system contracts v0.1][system], [Young review][young], [router verdict][router] and previous version of this file at Gateway `fda21d619dcc5119f1133501bafa8cc7e800c7cf`. `git ls-files` and `package.json` establish no migrations/ORM wiring. README and `.github/GITFLOW.md` were read; this task's requested local `codex/` branch is not a publication-route decision.
+- [Backend builder][builder]: `write`, `write_aida`, `write_portal`, `resource_entity`, `chunks_for_resource`, `curation_entity_rows`, `relationship`, `snapshot_checksums`, `text_hash`; [entity schema][entity-schema], [relationship schema][relationship-schema], [chunk schema][chunk-schema], [snapshot v3 documentation][snapshot-doc] and `tests/test_catalog_snapshot.py`, all at backend `5b9085d8717e31ffbb06e5621992ff05a14fbe89`. Backend checkout HEAD was separately observed at `5b9facf4f68e51c1f63574fc2551cede2f48eea2` (older v2 work); it was not used as v3 authority or modified.
+- [Published benchmark manifest][benchmark-manifest] and [benchmark README][benchmark] at the same backend revision. Only contract/manifest/config evidence was inspected; gold/held-out answers were not used as corpus or opened for evaluation.
+- **[bundle]** Read-only local `C:/Users/ofgar/Downloads/snapshot-v3 (2).zip`, identified by section 2 hashes. ZIP inventory, selected structured fields/counts, 16 ingestion/portal member checksums, and compound chunk-key collisions were checked without extraction. All 16 hashes matched. This does not claim all graph/report members or the upstream suite were checked. Archive-generated revision differs from the later builder; fixture bytes govern fixture assertions. Retained collision evidence is in the [technical handoff](review/ingestion-worker-technical-handoff.md#collision-evidence).
+
+[persistence]: ../sdsc-learning-hub-persistence-class-diagram.md
+[system]: ../system-contracts-v0.1.md
+[young]: ../young-data-ingestion-and-rag-automation-review.md
+[router]: ../aida-router-architecture-verdict.md
+[builder]: https://github.com/sdsc-hpc-training-dev/intvid-backend/blob/5b9085d8717e31ffbb06e5621992ff05a14fbe89/processing/catalog_snapshot.py
+[entity-schema]: https://github.com/sdsc-hpc-training-dev/intvid-backend/blob/5b9085d8717e31ffbb06e5621992ff05a14fbe89/schemas/canonical-entity-v3.schema.json
+[relationship-schema]: https://github.com/sdsc-hpc-training-dev/intvid-backend/blob/5b9085d8717e31ffbb06e5621992ff05a14fbe89/schemas/canonical-relationship-v3.schema.json
+[chunk-schema]: https://github.com/sdsc-hpc-training-dev/intvid-backend/blob/5b9085d8717e31ffbb06e5621992ff05a14fbe89/schemas/citation-chunk-v3.schema.json
+[snapshot-doc]: https://github.com/sdsc-hpc-training-dev/intvid-backend/blob/5b9085d8717e31ffbb06e5621992ff05a14fbe89/docs/catalog-snapshot-v3.md
+[benchmark-manifest]: https://github.com/sdsc-hpc-training-dev/intvid-backend/blob/5b9085d8717e31ffbb06e5621992ff05a14fbe89/benchmarks/aida-mvp-v2/benchmark_manifest.json
+[benchmark]: https://github.com/sdsc-hpc-training-dev/intvid-backend/blob/5b9085d8717e31ffbb06e5621992ff05a14fbe89/benchmarks/aida-mvp-v2/README.md
+[bundle]: review/ingestion-worker-technical-handoff.md#collision-evidence
+[companion]: ../contracts/system-contracts-v0.2-candidate.md
+[central-decisions]: ../contracts/decisions-needed.md
