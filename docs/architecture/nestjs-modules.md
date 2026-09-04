@@ -1,6 +1,7 @@
 # HPC Learning Hub: NestJS Module Architecture
 
-**Status:** Proposed implementation structure, frozen for independent review.
+**Status:** Proposed implementation structure; one independent review completed
+with no findings. This is not team approval or a claim of implementation.
 **Source baseline:** `fda21d619dcc5119f1133501bafa8cc7e800c7cf`.
 
 This diagram answers **where code belongs**, not which tables exist or which
@@ -298,6 +299,9 @@ snapshot enum has `VALIDATED` and `ACTIVE`, not `READY`. No new enum value or
 schema change is introduced here. These choices do not change the import graph.
 
 ## Pinned Sources
+
+The [independent review](review/independent-review.md) and
+[author dispositions](review/dispositions.md) record the single review round.
 
 The links below freeze the evidence for this proposal; relative links above are
 for day-to-day navigation. Earlier source titles still say SDSC Learning Hub;
