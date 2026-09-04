@@ -6,7 +6,13 @@
 
 **Branch:** `codex/technical-ingestion-spec`
 
-**Deliverables:** [Technical contract](../ingestion-worker.md) and this handoff. Frozen commit supplied with task handoff; `git log -1 --format=%H` identifies it without a self-referential hash.
+**Deliverables:** [Technical contract](../ingestion-worker.md), this handoff, and [final review dispositions](ingestion-worker-review-dispositions.md). Original freeze: `c6a63676b9cf3dff728037a2d921a3084476afd0`. Final correction commit supplied with task handoff; `git log -1 --format=%H` identifies it without a self-referential hash.
+
+## Final Review Corrections
+
+One independent combined review requested R1/R2 (P2); both accepted. IW-023, T12 and D4 now gate missing/conflicting/unresolved recording scope and video-to-transcript association under central D-10, without choosing the controlled outcome. Transcript kind, active snapshot and compatible configuration remain independent filters; no unscoped transcript fallback is permitted. Section 12 maps specialist D1-D5 to the central register and requires explicit per-concern closure propagated through documents and applicable schema/tests. Archive limits, scratch cleanup and report/config serialization remain visible gates, not silently closed by provider-limit approval.
+
+Companion read at local Gateway commit `2b076a74028a85f14ffb1ff72ac9d4012c33e944`: `docs/contracts/system-contracts-v0.2-candidate.md` AIDA-03 and `docs/contracts/decisions-needed.md`. New relative crosslinks target the intended combined package; checks use those frozen Git objects because the contract files are absent in this worktree. They are not approved policy or GitHub-published author commits. Lorentz owns central/entrypoint corrections; Portal owns combined QA and affected NestJS annotations. See dispositions for all four findings.
 
 ## Evidence
 
@@ -84,9 +90,9 @@ For **Srujam**, D1/D2 require migration-backed chunk uniqueness, enum/grant/keyi
 
 For **Mio/Arnav**, the mapping/acceptance matrix bounds parser validation, closed fixture, synthetic embeddings, restricted import, source-filtered lookup, retry evidence and persistent restart. D3 is corpus/query compatibility, distinct from router evaluation. No separate assignment document was added.
 
-For the **system-contract author**, carry D1's actual collision, D2's `ready` discrepancy and M1/M2 distinction, D3's undecided embedding/storage pairing, and D4's curated-path/general-scope ambiguity into consistency review. The pinned benchmark branch has an older five-strategy experiment config; it is not four-route importer authority. No unmerged author files were read, edited, linked or treated as approved.
+For the **system-contract author**, use the section 12 crosswalk for D1's collision, D2's `ready` discrepancy and M1/M2 distinction, D3's embedding/storage pairing, D4's general/transcript/curated policy, and D5's remaining archive/report gates. The pinned benchmark branch has an older five-strategy experiment config; it is not four-route importer authority. The explicit frozen companion was read and linked only for this combined correction; no other author's worktree was edited or candidate treated as approved.
 
-**Fernando-level decisions only:** confirm the non-transcript general retrieval boundary and where curated-path ownership should be decided; approve scope/authorization before enabling production replacement. Concrete migration corrections, config proposals and measured operational values should first be resolved by engineering under D1-D3/D5, not escalated as micro-approvals. No decision is needed to publish explicitly candidate documentation after review.
+**Fernando-level decisions only:** approve product scope/fallback policy through central D-10, curated-path source/ownership through D-12, and scope/authorization before production replacement through D-01. Concrete migration corrections, config proposals and measured operational values should first be resolved by engineering through the mapped D-05/D-09 concerns, not escalated as micro-approvals. These choices can remain unresolved in the explicitly candidate documentation after correction/review.
 
 ## Validation And Boundary
 
@@ -103,4 +109,4 @@ git -C C:/Users/ofgar/Projects/GithubProjects/intVid/intvid-backend show 5b9085d
 Get-FileHash -LiteralPath 'C:/Users/ofgar/Downloads/snapshot-v3 (2).zip' -Algorithm SHA256
 ```
 
-One source/consistency self-review pass. The matrix specifies future tests, not an executed DB suite: no app/migration/CI changes, worker implementation, import, live NRP/S3 requests, cloud jobs, credentials or new reviewers/agents. No push/PR/merge. Portal is sole release coordinator; one requested combined-review correction/disposition pass may follow freeze. Shared main and other authors' worktrees remain untouched.
+One source/consistency self-review and the requested final R1/R2 correction/disposition pass; no second reviewer. The matrix specifies future tests, not an executed DB suite: no app/migration/CI changes, worker implementation, import, live NRP/S3 requests, cloud jobs, credentials or new agents. No push/PR/merge. Portal is sole release coordinator. Shared main and other authors' worktrees remain untouched.
