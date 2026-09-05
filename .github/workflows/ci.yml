@@ -40,6 +40,8 @@ jobs:
     name: Lint (ESLint)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      debt_comment_count: ${{ steps.debt_comments.outputs.count }}
 
     steps:
       - name: Check out repository
@@ -53,6 +55,18 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Count TODO and FIXME comments
+        id: debt_comments
+        shell: bash
+        run: |
+          matches="$(git grep -Eoh 'TODO|FIXME' -- src || true)"
+          if [ -z "$matches" ]; then
+            count=0
+          else
+            count="$(printf '%s\n' "$matches" | wc -l)"
+          fi
+          echo "count=$count" >> "$GITHUB_OUTPUT"
 
       - name: Lint
         run: npm run lint:check
@@ -82,6 +96,8 @@ jobs:
     name: Tests & coverage
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      uncovered_percentage: ${{ steps.coverage_metrics.outputs.uncovered_percentage }}
 
     steps:
       - name: Check out repository
@@ -100,6 +116,7 @@ jobs:
         run: npm run test:cov
 
       - name: Enforce configured coverage thresholds
+        id: coverage_metrics
         if: ${{ !cancelled() }}
         run: |
           node -e "
@@ -111,6 +128,16 @@ jobs:
             }
             const summary = require(reportPath).total;
             const thresholds = require('./package.json').jest.coverageThreshold.global;
+            const lineCoverage = summary.lines?.pct;
+            if (typeof lineCoverage !== 'number') {
+              console.error('Line coverage percentage is unavailable.');
+              process.exit(1);
+            }
+            const uncovered = Math.max(0, Number((100 - lineCoverage).toFixed(2)));
+            fs.appendFileSync(
+              process.env.GITHUB_OUTPUT,
+              'uncovered_percentage=' + uncovered + '\n',
+            );
             let failed = false;
             for (const [metric, minimum] of Object.entries(thresholds)) {
               const actual = summary[metric]?.pct;
@@ -142,6 +169,8 @@ jobs:
     name: Duplicate code (jscpd)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      duplicated_lines: ${{ steps.duplication_metrics.outputs.duplicated_lines }}
 
     steps:
       - name: Check out repository
@@ -159,10 +188,43 @@ jobs:
       - name: Check duplicated code
         run: npm run duplicates:check
 
+      - name: Read duplicated line count
+        id: duplication_metrics
+        if: ${{ !cancelled() }}
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const reportPath = './reports/jscpd/jscpd-report.json';
+            if (!fs.existsSync(reportPath)) {
+              console.error('jscpd JSON report was not generated.');
+              process.exit(1);
+            }
+            const report = require(reportPath);
+            const duplicatedLines = report.statistics?.total?.duplicatedLines;
+            if (!Number.isInteger(duplicatedLines) || duplicatedLines < 0) {
+              console.error('Duplicated line count is unavailable.');
+              process.exit(1);
+            }
+            fs.appendFileSync(
+              process.env.GITHUB_OUTPUT,
+              'duplicated_lines=' + duplicatedLines + '\n',
+            );
+          "
+
+      - name: Upload duplication report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: duplication-report
+          path: reports/jscpd
+          retention-days: 14
+
   unused:
     name: Unused code and dependencies (Knip)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      unused_code_count: ${{ steps.unused_code.outputs.count }}
 
     steps:
       - name: Check out repository
@@ -177,8 +239,44 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check unused code and dependencies
-        run: npm run unused:check
+      - name: Check and count unused code
+        id: unused_code
+        shell: bash
+        run: |
+          set +e
+          ./node_modules/.bin/knip --reporter json > "$RUNNER_TEMP/knip-report.json"
+          knip_status=$?
+          set -e
+
+          cat "$RUNNER_TEMP/knip-report.json"
+          KNIP_REPORT_PATH="$RUNNER_TEMP/knip-report.json" node -e "
+            const fs = require('node:fs');
+            const report = JSON.parse(
+              fs.readFileSync(process.env.KNIP_REPORT_PATH, 'utf8'),
+            );
+            const unusedTypes = [
+              'files',
+              'exports',
+              'nsExports',
+              'types',
+              'nsTypes',
+              'enumMembers',
+              'namespaceMembers',
+              'duplicates',
+            ];
+            const count = report.issues.reduce(
+              (total, issue) =>
+                total +
+                unusedTypes.reduce(
+                  (subtotal, type) => subtotal + (issue[type]?.length ?? 0),
+                  0,
+                ),
+              0,
+            );
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'count=' + count + '\n');
+          "
+
+          exit "$knip_status"
 
   audit:
     name: Dependency audit (npm)
@@ -308,6 +406,66 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
 
+  technical_debt:
+    name: Technical debt indicator
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ always() }}
+    needs:
+      - lint
+      - test
+      - duplication
+      - unused
+    outputs:
+      score: ${{ steps.calculate.outputs.score }}
+
+    steps:
+      - name: Calculate technical debt score
+        id: calculate
+        env:
+          UNCOVERED_PERCENTAGE: ${{ needs.test.outputs.uncovered_percentage }}
+          DUPLICATED_LINES: ${{ needs.duplication.outputs.duplicated_lines }}
+          DEBT_COMMENT_COUNT: ${{ needs.lint.outputs.debt_comment_count }}
+          UNUSED_CODE_COUNT: ${{ needs.unused.outputs.unused_code_count }}
+        shell: bash
+        run: |
+          metrics=(
+            "uncovered_percentage=$UNCOVERED_PERCENTAGE"
+            "duplicated_lines=$DUPLICATED_LINES"
+            "debt_comments=$DEBT_COMMENT_COUNT"
+            "unused_code=$UNUSED_CODE_COUNT"
+          )
+
+          for metric in "${metrics[@]}"; do
+            name="${metric%%=*}"
+            value="${metric#*=}"
+            if [[ ! "$value" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+              echo "::error::$name is unavailable"
+              exit 1
+            fi
+          done
+
+          score="$(awk -v uncovered="$UNCOVERED_PERCENTAGE" \
+            -v duplicated="$DUPLICATED_LINES" \
+            -v comments="$DEBT_COMMENT_COUNT" \
+            -v unused="$UNUSED_CODE_COUNT" \
+            'BEGIN { printf "%.2f", uncovered + duplicated + comments + unused }')"
+
+          echo "score=$score" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Technical debt indicator"
+            echo
+            echo "| Component | Value |"
+            echo "| --- | ---: |"
+            echo "| Uncovered lines | $UNCOVERED_PERCENTAGE% |"
+            echo "| Duplicated lines | $DUPLICATED_LINES |"
+            echo "| TODO/FIXME comments | $DEBT_COMMENT_COUNT |"
+            echo "| Unused-code findings | $UNUSED_CODE_COUNT |"
+            echo "| **Total score** | **$score** |"
+            echo
+            echo "Higher scores indicate more technical debt; zero is ideal."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   quality-gate:
     name: quality-gate
     runs-on: ubuntu-latest
@@ -325,6 +483,7 @@ jobs:
       - semgrep
       - build
       - container_scan
+      - technical_debt
 
     steps:
       - name: Verify all CI jobs succeeded
@@ -340,6 +499,7 @@ jobs:
           SEMGREP_RESULT: ${{ needs.semgrep.result }}
           BUILD_RESULT: ${{ needs.build.result }}
           TRIVY_RESULT: ${{ needs.container_scan.result }}
+          TECHNICAL_DEBT_RESULT: ${{ needs.technical_debt.result }}
         run: |
           checks=(
             "format=$FORMAT_RESULT"
@@ -353,6 +513,7 @@ jobs:
             "semgrep=$SEMGREP_RESULT"
             "build=$BUILD_RESULT"
             "container_scan=$TRIVY_RESULT"
+            "technical_debt=$TECHNICAL_DEBT_RESULT"
           )
 
           failed=0

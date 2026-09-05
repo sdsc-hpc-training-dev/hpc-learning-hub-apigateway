@@ -5,5 +5,5 @@
   "ignore": ["**/*.spec.ts"],
   "reporters": ["console", "json", "html"],
   "output": "reports/jscpd",
-  "threshold": 5
+  "threshold": 3
 }
