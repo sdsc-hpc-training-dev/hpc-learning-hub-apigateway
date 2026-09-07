@@ -29,9 +29,12 @@ versions without a leading `v`, for example `release/1.4.0` or `hotfix/1.4.1`.
 | `hotfix/*`  | `dev`                     | Back-merge the production fix                               |
 | `main`      | `dev`                     | Synchronize all released changes back into development      |
 
-The `gitflow-policy` check rejects every other source/target combination. The
-`quality-gate` check installs locked dependencies, lints, checks formatting,
-runs unit tests, and builds the application.
+The `gitflow-policy` check rejects every other source/target combination. CI
+shows formatting, linting, type checking, tests and coverage, code-quality,
+security, build, and conditional container-scan jobs separately. The required
+`quality-gate` check aggregates those results and passes only when every job
+succeeds. The container build and Trivy scan are skipped when no root
+`Dockerfile` exists.
 
 ## Feature flow
 
