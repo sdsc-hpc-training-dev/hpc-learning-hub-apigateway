@@ -28,8 +28,17 @@
 ## Architecture documentation
 
 - [Implementation brief for the intern team](docs/intern-implementation-brief.md)
+- [Reverse-chronological meeting notes](docs/meeting-notes.md)
+- [Ingestion worker specification](docs/specs/ingestion-worker.md)
 - [System contracts v0.1](docs/system-contracts-v0.1.md)
+- [Candidate v0.2 implementation entrypoint](docs/contracts/agent-entrypoint.md)
+- [Candidate v0.2 contracts](docs/contracts/system-contracts-v0.2-candidate.md)
+- [Unresolved decisions and ingestion crosswalk](docs/contracts/decisions-needed.md)
+- [Combined candidate review and corrections](docs/review/contracts-ingestion-dispositions.md)
 - [Persistence class diagram](docs/sdsc-learning-hub-persistence-class-diagram.md)
+- [Proposed NestJS module architecture and folder layout](docs/architecture/nestjs-modules.md)
+- [Rendered NestJS module diagram](docs/architecture/assets/nestjs-modules.svg)
+- [Shared frontend/backend feature mapping (2026-09-04)](docs/architecture/feature-module-mapping.md)
 - [AIDA router architecture verdict](docs/aida-router-architecture-verdict.md)
 - [Data ingestion and RAG automation review](docs/young-data-ingestion-and-rag-automation-review.md)
 
