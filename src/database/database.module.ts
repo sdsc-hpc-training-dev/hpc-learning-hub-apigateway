@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { persistenceEntities } from './entities/persistence.entities';
 
 function parseDatabasePort(value: string): number {
   const port = Number(value);
@@ -23,11 +24,13 @@ function parseDatabasePort(value: string): number {
         username: config.getOrThrow<string>('DB_USERNAME'),
         password: config.getOrThrow<string>('DB_PASSWORD'),
         database: config.getOrThrow<string>('DB_DATABASE'),
+        uuidExtension: 'pgcrypto',
         autoLoadEntities: true,
         synchronize: false,
         dropSchema: false,
       }),
     }),
+    TypeOrmModule.forFeature([...persistenceEntities]),
   ],
   exports: [TypeOrmModule],
 })

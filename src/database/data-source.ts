@@ -30,6 +30,7 @@ const dataSource = new DataSource({
   username: requireDatabaseSetting('DB_USERNAME', process.env.DB_USERNAME),
   password: requireDatabaseSetting('DB_PASSWORD', process.env.DB_PASSWORD),
   database: requireDatabaseSetting('DB_DATABASE', process.env.DB_DATABASE),
+  uuidExtension: 'pgcrypto',
   entities: [`${__dirname}/../**/*.entity{.ts,.js}`],
   migrations: [`${__dirname}/../../migrations/*{.ts,.js}`],
   synchronize: false,
