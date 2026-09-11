@@ -1,123 +1,139 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# HPC Learning Hub API Gateway
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS API Gateway for the HPC Learning Hub. The project uses PostgreSQL with
+pgvector and TypeORM migrations.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Prerequisites
 
-## Description
+- Node.js `22.23.2`
+- npm `10.9.8`
+- Docker with Docker Compose
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Run locally
 
-## Architecture documentation
-
-- [Implementation brief for the intern team](docs/intern-implementation-brief.md)
-- [Reverse-chronological meeting notes](docs/meeting-notes.md)
-- [Ingestion worker specification](docs/specs/ingestion-worker.md)
-- [System contracts v0.1](docs/system-contracts-v0.1.md)
-- [Candidate v0.2 implementation entrypoint](docs/contracts/agent-entrypoint.md)
-- [Candidate v0.2 contracts](docs/contracts/system-contracts-v0.2-candidate.md)
-- [Unresolved decisions and ingestion crosswalk](docs/contracts/decisions-needed.md)
-- [Combined candidate review and corrections](docs/review/contracts-ingestion-dispositions.md)
-- [Persistence class diagram](docs/sdsc-learning-hub-persistence-class-diagram.md)
-- [Proposed NestJS module architecture and folder layout](docs/architecture/nestjs-modules.md)
-- [Rendered NestJS module diagram](docs/architecture/assets/nestjs-modules.svg)
-- [Shared frontend/backend feature mapping (2026-09-04)](docs/architecture/feature-module-mapping.md)
-- [AIDA router architecture verdict](docs/aida-router-architecture-verdict.md)
-- [Data ingestion and RAG automation review](docs/young-data-ingestion-and-rag-automation-review.md)
-
-## Project setup
+### 1. Install dependencies
 
 ```bash
-$ npm install
+npm install
+```
+
+### 2. Create the environment file
+
+```bash
+cp .env.example .env
+```
+
+Update `DB_PASSWORD` in `.env` if needed. The `.env` file is ignored by Git.
+
+### 3. Start PostgreSQL
+
+```bash
+docker compose up -d postgres
+docker compose ps
+```
+
+The PostgreSQL service is ready when its status says `healthy`.
+
+To follow its logs:
+
+```bash
+docker compose logs -f postgres
+```
+
+### 4. Apply the database migrations
+
+```bash
+npm run migration:run
+npm run migration:show
+```
+
+Applied migrations are marked with `[X]` by `migration:show`.
+
+Migrations are not applied automatically when NestJS starts. Run
+`npm run migration:run` whenever you pull a new migration.
+
+### 5. Start NestJS
+
+```bash
+npm run start:dev
+```
+
+The API runs at `http://localhost:3000`. Check the current root endpoint with:
+
+```bash
+curl http://localhost:3000/
+```
+
+## Inspect PostgreSQL
+
+Open a PostgreSQL prompt inside the container:
+
+```bash
+docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+Useful commands inside `psql`:
+
+```sql
+\conninfo
+\dt public.*
+\d+ catalog_snapshots
+\dx
+SELECT * FROM migrations ORDER BY timestamp;
+\q
+```
+
+## Run checks
+
+```bash
+# Unit tests
+npm test
+
+# Unit tests with coverage thresholds
+npm run test:cov
+
+# Formatting, linting, and type checking
+npm run format:check
+npm run lint:check
+npm run typecheck
+
+# Build the application
+npm run build
+
+# Duplication and unused-code checks
+npm run duplicates:check
+npm run unused:check
+```
+
+Run the production build after `npm run build`:
+
+```bash
+npm run start:prod
+```
+
+## Stop the local services
+
+Stop PostgreSQL while preserving its data:
+
+```bash
+docker compose stop postgres
+```
+
+Start it again later with:
+
+```bash
+docker compose start postgres
 ```
 
 ## Development workflow
 
-This repository uses GitFlow with `main` and `dev` as its protected,
-long-lived branches. Work is integrated through `feature/*`, `release/*`, and
-`hotfix/*` branches. See [.github/GITFLOW.md](.github/GITFLOW.md) for branch
-names, allowed pull request routes, release steps, and the one-time repository
-setup.
+Create feature branches from `dev` and open feature pull requests back into
+`dev`. See [.github/GITFLOW.md](.github/GITFLOW.md) for the complete workflow.
 
-## Compile and run the project
+## Architecture documentation
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- [NestJS module architecture](docs/architecture/nestjs-modules.md)
+- [Persistence class diagram](docs/sdsc-learning-hub-persistence-class-diagram.md)
+- [Implementation brief](docs/intern-implementation-brief.md)
+- [System contracts](docs/contracts/agent-entrypoint.md)
+- [Ingestion worker specification](docs/specs/ingestion-worker.md)

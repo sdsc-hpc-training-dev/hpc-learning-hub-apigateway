@@ -10,13 +10,16 @@
     "npm": "10.9.8"
   },
   "packageManager": "npm@10.9.8",
+  "overrides": {
+    "multer": "2.3.0"
+  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write .",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main",
     "lint": "eslint . --fix",
     "lint:check": "eslint . --max-warnings=0",
     "format:check": "prettier --check .",
@@ -28,14 +31,24 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "duplicates:check": "jscpd src",
     "unused:check": "knip",
-    "audit:prod": "npm audit --omit=dev --audit-level=high"
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "migration:create": "typeorm-ts-node-commonjs migration:create",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts --pretty",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
+    "migration:show": "typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^12.0.0",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/typeorm": "^12.0.1",
+    "dotenv": "^17.4.2",
+    "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "typeorm": "^1.1.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
@@ -91,6 +104,12 @@
         "functions": 80,
         "lines": 80,
         "statements": 80
+      },
+      "**/database/entities/**/*.entity.ts": {
+        "branches": 55,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
       }
     },
     "coverageDirectory": "../coverage",
