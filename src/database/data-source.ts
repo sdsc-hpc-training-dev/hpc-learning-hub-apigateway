@@ -2,7 +2,7 @@ import 'dotenv/config';
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 
-function parseDatabasePort(value: string | undefined): number {
+export function parseDatabasePort(value: string | undefined): number {
   const port = Number(value ?? '5432');
 
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
@@ -12,7 +12,7 @@ function parseDatabasePort(value: string | undefined): number {
   return port;
 }
 
-function requireDatabaseSetting(
+export function requireDatabaseSetting(
   name: string,
   value: string | undefined,
 ): string {
