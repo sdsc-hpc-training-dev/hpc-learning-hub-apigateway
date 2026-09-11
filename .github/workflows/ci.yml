@@ -115,7 +115,7 @@ jobs:
       - name: Run unit tests with coverage
         run: npm run test:cov
 
-      - name: Enforce configured coverage thresholds
+      - name: Read coverage metrics
         id: coverage_metrics
         if: ${{ !cancelled() }}
         run: |
@@ -127,29 +127,24 @@ jobs:
               process.exit(1);
             }
             const summary = require(reportPath).total;
-            const thresholds = require('./package.json').jest.coverageThreshold.global;
             const lineCoverage = summary.lines?.pct;
             if (typeof lineCoverage !== 'number') {
               console.error('Line coverage percentage is unavailable.');
               process.exit(1);
+            }
+            for (const metric of ['statements', 'branches', 'functions', 'lines']) {
+              const actual = summary[metric]?.pct;
+              if (typeof actual !== 'number') {
+                console.error('Coverage for ' + metric + ' is unavailable.');
+                process.exit(1);
+              }
+              console.log('Coverage for ' + metric + ' is ' + actual + '%.');
             }
             const uncovered = Math.max(0, Number((100 - lineCoverage).toFixed(2)));
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
               'uncovered_percentage=' + uncovered + '\n',
             );
-            let failed = false;
-            for (const [metric, minimum] of Object.entries(thresholds)) {
-              const actual = summary[metric]?.pct;
-              if (typeof actual !== 'number' || actual < minimum) {
-                console.error(
-                  'Coverage for ' + metric + ' is ' + actual +
-                  '%, below required ' + minimum + '%',
-                );
-                failed = true;
-              }
-            }
-            if (failed) process.exit(1);
           "
 
       - name: Upload coverage reports
