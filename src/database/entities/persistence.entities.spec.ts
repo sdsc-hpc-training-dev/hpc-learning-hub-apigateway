@@ -1,3 +1,10 @@
+jest.mock('dotenv/config', () => {
+  process.env.DB_USERNAME = 'test_gateway';
+  process.env.DB_PASSWORD = 'test_password';
+  process.env.DB_DATABASE = 'test_learning_hub';
+  return {};
+});
+
 import { DataSource, EntityMetadata } from 'typeorm';
 import dataSource, {
   parseDatabasePort,
