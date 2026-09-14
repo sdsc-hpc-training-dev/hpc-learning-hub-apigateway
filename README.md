@@ -58,11 +58,28 @@ Migrations are not applied automatically when NestJS starts. Run
 npm run start:dev
 ```
 
-The API runs at `http://localhost:3000`. Check the current root endpoint with:
+The API uses the `/api/v1` base path. Check the current root endpoint with:
 
 ```bash
-curl http://localhost:3000/
+curl http://localhost:3000/api/v1
 ```
+
+Training Library reads are available at:
+
+```text
+GET /api/v1/materials
+GET /api/v1/materials/:materialId
+GET /api/v1/materials/:materialId/resources
+GET /api/v1/topics
+GET /api/v1/tools
+GET /api/v1/systems
+GET /api/v1/event-series
+GET /api/v1/event-editions
+```
+
+`GET /materials` accepts `search`, `topic`, `tool`, `system`, `eventSeries`,
+`eventEdition`, `instructor`, `resourceType`, `page`, and `pageSize` query
+parameters. Relationship filters use canonical IDs.
 
 ## Inspect PostgreSQL
 
