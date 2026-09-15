@@ -100,6 +100,7 @@ describe('persistence entity registration', () => {
         'schema_version',
         'bucket_object_key',
         'object_sha256',
+        'manifest_sha256',
         'status',
         'validated_at',
         'activated_at',
@@ -115,12 +116,35 @@ describe('persistence entity registration', () => {
       ),
     ).toBe(true);
     expect(columns.get('status')?.enum).toEqual(Object.values(SnapshotStatus));
+    expect(columns.get('pipeline_code_hash')?.isNullable).toBe(true);
+    expect(columns.get('source_hashes')?.isNullable).toBe(true);
     expect(snapshot.indices.map((index) => index.givenName)).toContain(
       'UQ_catalog_snapshots_one_active',
     );
     expect(snapshot.checks.map((check) => check.name)).toContain(
       'CHK_catalog_snapshots_activated_status',
     );
+  });
+
+  it('maps ingestion-worker run metadata and database timestamps', () => {
+    const runs = table('snapshot_import_runs');
+    const columns = new Map(
+      runs.columns.map((column) => [column.databaseName, column]),
+    );
+
+    expect(columns.get('mapping_version')?.isNullable).toBe(true);
+    expect(columns.get('started_at')?.default).toBeDefined();
+    expect(columns.get('status')?.enum).toEqual(Object.values(ImportRunStatus));
+  });
+
+  it('stores structured snapshot text-selection policies as jsonb', () => {
+    const resources = table('content_resources');
+    const policy = resources.columns.find(
+      (column) => column.databaseName === 'text_selection_policy',
+    );
+
+    expect(policy?.type).toBe('jsonb');
+    expect(policy?.isNullable).toBe(true);
   });
 });
 
@@ -142,6 +166,9 @@ describe('retrieval persistence metadata', () => {
     expect(chunkColumns.get('event_edition_id')?.isNullable).toBe(true);
     expect(embeddingColumns.get('embedding')?.type).toBe('vector');
     expect(embeddingColumns.get('dimensions')?.type).toBe('integer');
+    expect(embeddingColumns.get('model_revision')?.isNullable).toBe(true);
+    expect(embeddingColumns.get('normalization')?.isNullable).toBe(true);
+    expect(embeddingColumns.get('input_policy')?.isNullable).toBe(true);
     expect(embeddings.uniques.map((unique) => unique.name)).toContain(
       'UQ_chunk_embeddings_model',
     );

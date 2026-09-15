@@ -36,8 +36,17 @@ export class ChunkEmbedding {
   @Column('text', { name: 'embedding_version' })
   embeddingVersion!: string;
 
+  @Column('text', { name: 'model_revision', nullable: true })
+  modelRevision!: string | null;
+
   @Column('integer')
   dimensions!: number;
+
+  @Column('text', { nullable: true })
+  normalization!: string | null;
+
+  @Column('text', { name: 'input_policy', nullable: true })
+  inputPolicy!: string | null;
 
   @Column('text', { name: 'content_hash' })
   contentHash!: string;

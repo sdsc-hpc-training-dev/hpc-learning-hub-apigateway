@@ -139,8 +139,8 @@ export class ContentResource extends SnapshotCatalogEntity {
   @Column('text', { name: 'session_key', nullable: true })
   sessionKey!: string | null;
 
-  @Column('text', { name: 'text_selection_policy', nullable: true })
-  textSelectionPolicy!: string | null;
+  @Column('jsonb', { name: 'text_selection_policy', nullable: true })
+  textSelectionPolicy!: Record<string, unknown> | null;
 
   @Column('integer', { name: 'source_file_count', nullable: true })
   sourceFileCount!: number | null;
