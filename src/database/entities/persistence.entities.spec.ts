@@ -135,7 +135,9 @@ describe('persistence entity registration', () => {
     );
 
     expect(columns.get('mapping_version')?.isNullable).toBe(true);
-    expect(columns.get('started_at')?.default).toBeDefined();
+    const startedAtDefault = columns.get('started_at')?.default;
+    expect(startedAtDefault).toEqual(expect.any(Function));
+    expect((startedAtDefault as () => string)()).toBe('now()');
     expect(columns.get('status')?.enum).toEqual(Object.values(ImportRunStatus));
   });
 
