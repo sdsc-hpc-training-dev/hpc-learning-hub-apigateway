@@ -40,8 +40,8 @@ export class EventSeries extends SnapshotCatalogEntity {
 @Index('IDX_event_editions_start_at', ['startAt'])
 @Index('IDX_event_editions_search', { synchronize: false })
 export class EventEdition extends SnapshotCatalogEntity {
-  @Column('text')
-  title!: string;
+  @Column('text', { nullable: true })
+  title!: string | null;
 
   @Column('text', { nullable: true })
   description!: string | null;
@@ -75,8 +75,8 @@ export class EventEdition extends SnapshotCatalogEntity {
 @Index('IDX_training_materials_snapshot_id', ['snapshotId'])
 @Index('IDX_training_materials_search', { synchronize: false })
 export class TrainingMaterial extends SnapshotCatalogEntity {
-  @Column('text')
-  title!: string;
+  @Column('text', { nullable: true })
+  title!: string | null;
 
   @Column('text', { nullable: true })
   description!: string | null;
@@ -109,8 +109,8 @@ export class ContentResource extends SnapshotCatalogEntity {
   })
   resourceType!: ResourceType;
 
-  @Column('text')
-  title!: string;
+  @Column('text', { nullable: true })
+  title!: string | null;
 
   @Column('text', { name: 'canonical_url', nullable: true })
   canonicalUrl!: string | null;
@@ -139,8 +139,8 @@ export class ContentResource extends SnapshotCatalogEntity {
   @Column('text', { name: 'session_key', nullable: true })
   sessionKey!: string | null;
 
-  @Column('text', { name: 'text_selection_policy', nullable: true })
-  textSelectionPolicy!: string | null;
+  @Column('jsonb', { name: 'text_selection_policy', nullable: true })
+  textSelectionPolicy!: Record<string, unknown> | null;
 
   @Column('integer', { name: 'source_file_count', nullable: true })
   sourceFileCount!: number | null;
@@ -224,8 +224,8 @@ export class ContentResourceFile {
   @PrimaryColumn('text')
   path!: string;
 
-  @Column('text', { name: 'content_hash' })
-  contentHash!: string;
+  @Column('text', { name: 'content_hash', nullable: true })
+  contentHash!: string | null;
 
   @Column('integer')
   position!: number;

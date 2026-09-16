@@ -26,29 +26,29 @@ export class CatalogSnapshot {
   @Column('text', { name: 'schema_version' })
   schemaVersion!: string;
 
-  @Column('text', { name: 'code_version' })
-  codeVersion!: string;
+  @Column('text', { name: 'code_version', nullable: true })
+  codeVersion!: string | null;
 
-  @Column('text', { name: 'pipeline_code_hash' })
-  pipelineCodeHash!: string;
+  @Column('text', { name: 'pipeline_code_hash', nullable: true })
+  pipelineCodeHash!: string | null;
 
-  @Column('text', { name: 'configuration_hash' })
-  configurationHash!: string;
+  @Column('text', { name: 'configuration_hash', nullable: true })
+  configurationHash!: string | null;
 
-  @Column('text', { name: 'curation_version' })
-  curationVersion!: string;
+  @Column('text', { name: 'curation_version', nullable: true })
+  curationVersion!: string | null;
 
-  @Column('text', { name: 'id_registry_version' })
-  idRegistryVersion!: string;
+  @Column('text', { name: 'id_registry_version', nullable: true })
+  idRegistryVersion!: string | null;
 
-  @Column('text', { name: 'dataset_scope' })
-  datasetScope!: string;
+  @Column('text', { name: 'dataset_scope', nullable: true })
+  datasetScope!: string | null;
 
-  @Column('boolean', { name: 'source_tree_dirty' })
-  sourceTreeDirty!: boolean;
+  @Column('boolean', { name: 'source_tree_dirty', nullable: true })
+  sourceTreeDirty!: boolean | null;
 
-  @Column('timestamptz', { name: 'generated_at' })
-  generatedAt!: Date;
+  @Column('timestamptz', { name: 'generated_at', nullable: true })
+  generatedAt!: Date | null;
 
   @Column('text', { name: 'bucket_object_key', unique: true })
   bucketObjectKey!: string;
@@ -56,11 +56,14 @@ export class CatalogSnapshot {
   @Column('text', { name: 'object_sha256' })
   objectSha256!: string;
 
+  @Column('text', { name: 'manifest_sha256', nullable: true })
+  manifestSha256!: string | null;
+
   @Column('jsonb', { name: 'file_checksums' })
   fileChecksums!: Record<string, unknown>;
 
-  @Column('jsonb', { name: 'source_hashes' })
-  sourceHashes!: Record<string, unknown>;
+  @Column('jsonb', { name: 'source_hashes', nullable: true })
+  sourceHashes!: Record<string, unknown> | null;
 
   @Column('jsonb', { name: 'entity_counts' })
   entityCounts!: Record<string, unknown>;
@@ -68,11 +71,11 @@ export class CatalogSnapshot {
   @Column('jsonb', { name: 'relationship_counts' })
   relationshipCounts!: Record<string, unknown>;
 
-  @Column('jsonb', { name: 'projection_manifests' })
-  projectionManifests!: Record<string, unknown>;
+  @Column('jsonb', { name: 'projection_manifests', nullable: true })
+  projectionManifests!: Record<string, unknown> | null;
 
-  @Column('jsonb', { name: 'vocabulary_versions' })
-  vocabularyVersions!: Record<string, unknown>;
+  @Column('jsonb', { name: 'vocabulary_versions', nullable: true })
+  vocabularyVersions!: Record<string, unknown> | null;
 
   @Column('enum', {
     enum: SnapshotStatus,

@@ -28,13 +28,16 @@ export class SnapshotImportRun {
   @Column('text', { name: 'importer_version' })
   importerVersion!: string;
 
+  @Column('text', { name: 'mapping_version', nullable: true })
+  mappingVersion!: string | null;
+
   @Column('enum', {
     enum: ImportRunStatus,
     enumName: 'import_run_status_enum',
   })
   status!: ImportRunStatus;
 
-  @Column('timestamptz', { name: 'started_at' })
+  @Column('timestamptz', { name: 'started_at', default: () => 'now()' })
   startedAt!: Date;
 
   @Column('timestamptz', { name: 'completed_at', nullable: true })

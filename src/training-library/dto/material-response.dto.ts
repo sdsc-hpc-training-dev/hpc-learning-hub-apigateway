@@ -5,7 +5,7 @@ export interface NamedCatalogItemResponseDto {
 
 export interface EventEditionResponseDto {
   id: string;
-  title: string;
+  title: string | null;
   description: string | null;
   startAt: string | null;
   endAt: string | null;
@@ -20,7 +20,7 @@ export interface EventSeriesResponseDto {
 
 export interface MaterialResourceResponseDto {
   id: string;
-  title: string;
+  title: string | null;
   type: string;
   url: string | null;
   verificationStatus: string | null;
@@ -28,7 +28,7 @@ export interface MaterialResourceResponseDto {
 
 export interface MaterialResponseDto {
   id: string;
-  title: string;
+  title: string | null;
   description: string | null;
   eventEditions: EventEditionResponseDto[];
   topics: NamedCatalogItemResponseDto[];

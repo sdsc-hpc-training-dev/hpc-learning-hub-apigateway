@@ -149,7 +149,9 @@ export class TrainingLibraryService {
       description: record.material.description,
       eventEditions: record.eventEditions
         .map((item) => this.toEventEdition(item))
-        .sort((left, right) => left.title.localeCompare(right.title)),
+        .sort((left, right) =>
+          (left.title ?? '').localeCompare(right.title ?? ''),
+        ),
       topics: this.toNamedItems(record.topics),
       tools: this.toNamedItems(record.tools),
       systems: this.toNamedItems(record.systems),
@@ -177,7 +179,9 @@ export class TrainingLibraryService {
         url: resource.canonicalUrl,
         verificationStatus: resource.verificationStatus,
       }))
-      .sort((left, right) => left.title.localeCompare(right.title));
+      .sort((left, right) =>
+        (left.title ?? '').localeCompare(right.title ?? ''),
+      );
   }
 
   private toEventEdition(event: EventEdition): EventEditionResponseDto {
