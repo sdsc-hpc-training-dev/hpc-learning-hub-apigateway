@@ -11,13 +11,13 @@ branches. Changes reach `main` only through a reviewed release or hotfix.
 | `dev`             | `main` initially | Next release integration | `RELEASE-X.Y.Z`    |
 | `feature/<slug>`  | `dev` normally   | One focused change       | `dev`              |
 | `RELEASE-X.Y.Z`   | `dev`            | Release stabilization    | `main`, then `dev` |
-| `hotfix/<semver>` | `main`           | Urgent production repair | `main`, then `dev` |
+| `hotfix/<slug>`   | `main`           | Urgent production repair | `main`, then `dev` |
 
 Use lowercase feature slugs containing letters, numbers, `.`, `_`, or `-`, for
-example `feature/123-add-course-search`. Release and hotfix names use semantic
-versions without a leading `v`. Release branches use the exact uppercase form
-`RELEASE-X.Y.Z`, for example `RELEASE-1.4.0`. Hotfix branches continue to use
-the slash form, for example `hotfix/1.4.1`.
+example `feature/123-add-course-search`. Release branches use semantic versions
+without a leading `v` and the exact uppercase form `RELEASE-X.Y.Z`, for example
+`RELEASE-1.4.0`. Hotfix branches use lowercase slugs containing letters,
+numbers, `.`, `_`, or `-`, for example `hotfix/fix-login-crash`.
 
 ## Allowed pull requests
 
@@ -64,7 +64,7 @@ Open a pull request into `dev`. Delete the feature branch after it is merged.
 
 ## Hotfix flow
 
-1. Create `hotfix/X.Y.Z` from an up-to-date `main`.
+1. Create `hotfix/<slug>` from an up-to-date `main`.
 2. Implement and validate only the production fix.
 3. Open the hotfix into `main` and merge it after approval and checks pass.
 4. Tag the merge commit as `vX.Y.Z`, then open `main` into `dev` to synchronize
