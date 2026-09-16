@@ -1,9 +1,8 @@
 name: Release Branch Automation
 
 on:
-  pull_request_target:
+  push:
     branches: [dev]
-    types: [closed]
 
 permissions:
   contents: write
@@ -12,25 +11,25 @@ jobs:
   create-branch:
     name: Create release branch
     if: >-
-      github.event.pull_request.merged == true &&
-      startsWith(github.event.pull_request.title, 'release: ')
+      startsWith(github.event.head_commit.message, 'RELEASE-')
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
-      PR_TITLE: ${{ github.event.pull_request.title }}
+      COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+      COMMIT_SHA: ${{ github.sha }}
     steps:
-      - name: Create branch from release PR
+      - name: Create branch from release commit
         shell: bash
         run: |
-          version="${PR_TITLE#release: }"
+          commit_subject="${COMMIT_MESSAGE%%$'\n'*}"
+          version="${commit_subject#RELEASE-}"
 
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Use a PR title like: release: 1.2.3"
+            echo "::error::Use a commit subject like: RELEASE-1.2.3"
             exit 1
           fi
 
-          branch="release/$version"
+          branch="RELEASE-$version"
           if gh api "/repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --silent 2>/dev/null; then
             echo "::notice::$branch already exists"
             exit 0
@@ -38,4 +37,4 @@ jobs:
 
           gh api --method POST "/repos/$GITHUB_REPOSITORY/git/refs" \
             -f ref="refs/heads/$branch" \
-            -f sha="$MERGE_SHA"
+            -f sha="$COMMIT_SHA"
