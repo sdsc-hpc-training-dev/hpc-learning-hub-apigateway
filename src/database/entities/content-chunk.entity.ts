@@ -67,11 +67,11 @@ export class ContentChunk {
   @Column('text')
   text!: string;
 
-  @Column('integer', { name: 'word_start' })
-  wordStart!: number;
+  @Column('integer', { name: 'word_start', nullable: true })
+  wordStart!: number | null;
 
-  @Column('integer', { name: 'word_end' })
-  wordEnd!: number;
+  @Column('integer', { name: 'word_end', nullable: true })
+  wordEnd!: number | null;
 
   @Column('text', { name: 'text_hash' })
   textHash!: string;
@@ -79,20 +79,20 @@ export class ContentChunk {
   @Column('text', { name: 'source_hash', nullable: true })
   sourceHash!: string | null;
 
-  @Column('text', { name: 'source_entity_id' })
-  sourceEntityId!: string;
+  @Column('text', { name: 'source_entity_id', nullable: true })
+  sourceEntityId!: string | null;
 
-  @Column('text', { name: 'source_location' })
-  sourceLocation!: string;
+  @Column('text', { name: 'source_location', nullable: true })
+  sourceLocation!: string | null;
 
-  @Column('jsonb')
-  provenance!: Record<string, unknown>;
+  @Column('jsonb', { nullable: true })
+  provenance!: Record<string, unknown> | null;
 
   @Column('text', { name: 'chunking_version' })
   chunkingVersion!: string;
 
-  @Column('text')
-  language!: string;
+  @Column('text', { nullable: true })
+  language!: string | null;
 
   @ManyToOne(() => CatalogSnapshot, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'snapshot_id' })

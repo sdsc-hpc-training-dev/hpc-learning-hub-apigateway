@@ -26,20 +26,20 @@ abstract class CatalogRelationship {
   @Column('text', { name: 'snapshot_id' })
   snapshotId!: string;
 
-  @Column('text')
-  evidence!: string;
+  @Column('text', { nullable: true })
+  evidence!: string | null;
 
-  @Column('text', { name: 'extraction_method' })
-  extractionMethod!: string;
+  @Column('text', { name: 'extraction_method', nullable: true })
+  extractionMethod!: string | null;
 
-  @Column('text', { name: 'review_status' })
-  reviewStatus!: string;
+  @Column('text', { name: 'review_status', nullable: true })
+  reviewStatus!: string | null;
 
-  @Column('text', { name: 'trust_class' })
-  trustClass!: string;
+  @Column('text', { name: 'trust_class', nullable: true })
+  trustClass!: string | null;
 
-  @Column('text', { name: 'source_document' })
-  sourceDocument!: string;
+  @Column('text', { name: 'source_document', nullable: true })
+  sourceDocument!: string | null;
 
   @ManyToOne(() => CatalogSnapshot, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'snapshot_id' })
