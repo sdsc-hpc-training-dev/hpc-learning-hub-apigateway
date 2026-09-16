@@ -6,7 +6,7 @@ head_branch=${1:?A pull request head branch is required}
 base_branch=${2:?A pull request base branch is required}
 
 feature_pattern='^feature/[a-z0-9][a-z0-9._-]*$'
-release_pattern='^release/[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'
+release_pattern='^RELEASE-[0-9]+\.[0-9]+\.[0-9]+$'
 hotfix_pattern='^hotfix/[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'
 
 main_pattern='main'
@@ -32,19 +32,19 @@ expected=''
 
 case "$base_branch" in
   main)
-    expected='release/<semver> or hotfix/<semver>'
+    expected='RELEASE-X.Y.Z or hotfix/<semver>'
     if is_release "$head_branch" || is_hotfix "$head_branch"; then
       valid=true
     fi
     ;;
   dev)
-    expected='feature/<slug>, release/<semver>, main, or hotfix/<semver>'
+    expected='feature/<slug>, RELEASE-X.Y.Z, main, or hotfix/<semver>'
     if is_feature "$head_branch" || is_release "$head_branch" || is_hotfix "$head_branch" || is_main "$head_branch"; then
       valid=true
     fi
     ;;
-  release/*)
-    expected='feature/<slug> targeting a valid release/<semver> branch'
+  RELEASE-*)
+    expected='feature/<slug> targeting a valid RELEASE-X.Y.Z branch'
     if is_release "$base_branch" && is_feature "$head_branch"; then
       valid=true
     fi
@@ -56,7 +56,7 @@ case "$base_branch" in
     fi
     ;;
   *)
-    expected='a pull request targeting main, dev, release/<semver>, or hotfix/<semver>'
+    expected='a pull request targeting main, dev, RELEASE-X.Y.Z, or hotfix/<semver>'
     ;;
 esac
 

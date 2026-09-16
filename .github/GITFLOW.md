@@ -5,26 +5,28 @@ branches. Changes reach `main` only through a reviewed release or hotfix.
 
 ## Branches
 
-| Branch             | Start from       | Purpose                  | Merge into         |
-| ------------------ | ---------------- | ------------------------ | ------------------ |
-| `main`             | n/a              | Production history       | `dev` (back-sync)  |
-| `dev`              | `main` initially | Next release integration | `release/<semver>` |
-| `feature/<slug>`   | `dev` normally   | One focused change       | `dev`              |
-| `release/<semver>` | `dev`            | Release stabilization    | `main`, then `dev` |
-| `hotfix/<semver>`  | `main`           | Urgent production repair | `main`, then `dev` |
+| Branch            | Start from       | Purpose                  | Merge into         |
+| ----------------- | ---------------- | ------------------------ | ------------------ |
+| `main`            | n/a              | Production history       | `dev` (back-sync)  |
+| `dev`             | `main` initially | Next release integration | `RELEASE-X.Y.Z`    |
+| `feature/<slug>`  | `dev` normally   | One focused change       | `dev`              |
+| `RELEASE-X.Y.Z`   | `dev`            | Release stabilization    | `main`, then `dev` |
+| `hotfix/<semver>` | `main`           | Urgent production repair | `main`, then `dev` |
 
 Use lowercase feature slugs containing letters, numbers, `.`, `_`, or `-`, for
 example `feature/123-add-course-search`. Release and hotfix names use semantic
-versions without a leading `v`, for example `release/1.4.0` or `hotfix/1.4.1`.
+versions without a leading `v`. Release branches use the exact uppercase form
+`RELEASE-X.Y.Z`, for example `RELEASE-1.4.0`. Hotfix branches continue to use
+the slash form, for example `hotfix/1.4.1`.
 
 ## Allowed pull requests
 
 | Source      | Target                    | Use                                                         |
 | ----------- | ------------------------- | ----------------------------------------------------------- |
 | `feature/*` | `dev`                     | Normal integration                                          |
-| `feature/*` | `release/*` or `hotfix/*` | A reviewed stabilization fix based on that temporary branch |
-| `release/*` | `main`                    | Publish a release                                           |
-| `release/*` | `dev`                     | Back-merge release-only changes                             |
+| `feature/*` | `RELEASE-*` or `hotfix/*` | A reviewed stabilization fix based on that temporary branch |
+| `RELEASE-*` | `main`                    | Publish a release                                           |
+| `RELEASE-*` | `dev`                     | Back-merge release-only changes                             |
 | `hotfix/*`  | `main`                    | Publish an urgent fix                                       |
 | `hotfix/*`  | `dev`                     | Back-merge the production fix                               |
 | `main`      | `dev`                     | Synchronize all released changes back into development      |
@@ -49,10 +51,13 @@ Open a pull request into `dev`. Delete the feature branch after it is merged.
 
 ## Release flow
 
-1. Create `release/X.Y.Z` from an up-to-date `dev`.
+1. Add a commit to `dev` whose subject is exactly `RELEASE-X.Y.Z`, normally by
+   using that message when merging the release-preparation pull request. The
+   release automation creates `RELEASE-X.Y.Z` at that commit. A pull request
+   title by itself does not create a release branch.
 2. Make only release stabilization changes on the release branch. Use a
    `feature/*` branch based on the release branch when review is needed.
-3. Open `release/X.Y.Z` into `main` and merge after approval and checks pass.
+3. Open `RELEASE-X.Y.Z` into `main` and merge after approval and checks pass.
 4. Tag the merge commit as `vX.Y.Z`.
 5. Open `main` into `dev` to synchronize the completed release and any other
    production changes, then delete the release branch.
@@ -83,7 +88,7 @@ The idempotent setup workflow creates `dev` from `main` if needed and creates
 or updates the checked-in rulesets. The rulesets require pull requests, one
 approval, resolved review threads, an up-to-date branch, `gitflow-policy`, and
 `quality-gate` on `main` and `dev`. They also block deletion and force-pushes on
-the long-lived branches and block force-pushes on `release/*` and `hotfix/*`.
+the long-lived branches and block force-pushes on `RELEASE-*` and `hotfix/*`.
 
 This repository previously used `development`. Once `dev` exists and the team
 has confirmed that no work exists only on `development`, an administrator may
