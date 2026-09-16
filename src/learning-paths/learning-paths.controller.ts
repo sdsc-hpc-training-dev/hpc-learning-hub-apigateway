@@ -1,4 +1,5 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
+import { LearningPathResponseDto } from './dto/learning-path-response.dto';
 import { LearningPathsService } from './learning-paths.service';
 
 @Controller('learning-paths')
@@ -6,7 +7,12 @@ export class LearningPathsController {
   constructor(private readonly learningPathsService: LearningPathsService) {}
 
   @Get()
-  findAll(): [] {
+  findAll(): Promise<LearningPathResponseDto[]> {
     return this.learningPathsService.findAll();
+  }
+
+  @Get(':pathId')
+  findOne(@Param('pathId') pathId: string): Promise<LearningPathResponseDto> {
+    return this.learningPathsService.findOne(pathId);
   }
 }

@@ -27,6 +27,10 @@ import {
 } from './catalog.entity';
 import { ChunkEmbedding } from './chunk-embedding.entity';
 import { ContentChunk } from './content-chunk.entity';
+import {
+  CuratedLearningPath,
+  CuratedPathItem,
+} from './curated-learning-path.entity';
 import { SnapshotImportError } from './snapshot-import-error.entity';
 import { SnapshotImportRun } from './snapshot-import-run.entity';
 
@@ -56,4 +60,6 @@ export const persistenceEntities = [
   MaterialInstructor,
   ContentChunk,
   ChunkEmbedding,
+  CuratedLearningPath,
+  CuratedPathItem,
 ] as const;

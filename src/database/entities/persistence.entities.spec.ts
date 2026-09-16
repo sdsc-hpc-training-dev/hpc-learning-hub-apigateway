@@ -30,6 +30,8 @@ const expectedTables = [
   'content_chunks',
   'content_resource_files',
   'content_resources',
+  'curated_learning_paths',
+  'curated_path_items',
   'event_editions',
   'event_materials',
   'event_series',
@@ -72,7 +74,7 @@ const table = (name: string): EntityMetadata => {
 };
 
 describe('persistence entity registration', () => {
-  it('registers every ingestion persistence table exactly once', () => {
+  it('registers every persistence table exactly once', () => {
     const actualTables = metadata.map((item) => item.tableName).sort();
 
     expect(actualTables).toEqual(expectedTables);
@@ -145,6 +147,42 @@ describe('persistence entity registration', () => {
 
     expect(policy?.type).toBe('jsonb');
     expect(policy?.isNullable).toBe(true);
+  });
+});
+
+describe('curated learning path persistence metadata', () => {
+  it('maps publication fields and ordered material references', () => {
+    const paths = table('curated_learning_paths');
+    const items = table('curated_path_items');
+    const pathColumns = new Map(
+      paths.columns.map((column) => [column.databaseName, column]),
+    );
+    const itemColumns = new Map(
+      items.columns.map((column) => [column.databaseName, column]),
+    );
+
+    expect(pathColumns.get('id')?.type).toBe('uuid');
+    expect(pathColumns.get('is_published')?.default).toBe(false);
+    expect(itemColumns.get('position')?.isNullable).toBe(false);
+    expect(items.uniques.map((unique) => unique.name)).toContain(
+      'UQ_curated_path_items_position',
+    );
+    expect(items.checks.map((check) => check.name)).toContain(
+      'CHK_curated_path_items_position',
+    );
+    expect(
+      new Map(
+        items.relations.map((relation) => [
+          relation.propertyName,
+          relation.inverseEntityMetadata.tableName,
+        ]),
+      ),
+    ).toEqual(
+      new Map([
+        ['path', 'curated_learning_paths'],
+        ['material', 'training_materials'],
+      ]),
+    );
   });
 });
 
