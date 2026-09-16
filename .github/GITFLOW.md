@@ -5,13 +5,13 @@ branches. Changes reach `main` only through a reviewed release or hotfix.
 
 ## Branches
 
-| Branch            | Start from       | Purpose                  | Merge into         |
-| ----------------- | ---------------- | ------------------------ | ------------------ |
-| `main`            | n/a              | Production history       | `dev` (back-sync)  |
-| `dev`             | `main` initially | Next release integration | `RELEASE-X.Y.Z`    |
-| `feature/<slug>`  | `dev` normally   | One focused change       | `dev`              |
-| `RELEASE-X.Y.Z`   | `dev`            | Release stabilization    | `main`, then `dev` |
-| `hotfix/<slug>`   | `main`           | Urgent production repair | `main`, then `dev` |
+| Branch           | Start from       | Purpose                  | Merge into         |
+| ---------------- | ---------------- | ------------------------ | ------------------ |
+| `main`           | n/a              | Production history       | `dev` (back-sync)  |
+| `dev`            | `main` initially | Next release integration | `RELEASE-X.Y.Z`    |
+| `feature/<slug>` | `dev` normally   | One focused change       | `dev`              |
+| `RELEASE-X.Y.Z`  | `dev`            | Release stabilization    | `main`, then `dev` |
+| `hotfix/<slug>`  | `main`           | Urgent production repair | `main`, then `dev` |
 
 Use lowercase feature slugs containing letters, numbers, `.`, `_`, or `-`, for
 example `feature/123-add-course-search`. Release branches use semantic versions
