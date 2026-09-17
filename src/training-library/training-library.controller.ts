@@ -57,8 +57,22 @@ export class TrainingLibraryController {
     return this.trainingLibraryService.findEventSeries();
   }
 
+  @Get('event-series/:seriesId')
+  findEventSeriesById(
+    @Param('seriesId') seriesId: string,
+  ): Promise<EventSeriesResponseDto> {
+    return this.trainingLibraryService.findEventSeriesById(seriesId);
+  }
+
   @Get('event-editions')
   findEventEditions(): Promise<EventEditionResponseDto[]> {
     return this.trainingLibraryService.findEventEditions();
+  }
+
+  @Get('event-editions/:eventId')
+  findEventEditionsById(
+    @Param('eventId') eventId: string
+  ): Promise<EventEditionResponseDto> {
+    return this.trainingLibraryService.findEventEditionById(eventId);
   }
 }

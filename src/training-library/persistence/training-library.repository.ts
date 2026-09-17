@@ -106,6 +106,15 @@ export class TrainingLibraryRepository {
     });
   }
 
+  async findEventSeriesById(seriesId: string): Promise<EventSeries | null> {
+    const snapshotId = await this.activeSnapshot.findId();
+    if (!snapshotId) return null;
+
+    return this.dataSource
+      .getRepository(EventSeries)
+      .findOne({ where: { id: seriesId, snapshotId } });
+  }
+
   async findEventEditions(): Promise<EventEdition[]> {
     const snapshotId = await this.activeSnapshot.findId();
     if (!snapshotId) return [];
@@ -113,6 +122,14 @@ export class TrainingLibraryRepository {
       where: { snapshotId },
       order: { startAt: 'DESC', title: 'ASC', id: 'ASC' },
     });
+  }
+
+  async findEventEditionById(eventId: string): Promise<EventEdition | null> {
+    const snapshotId = await this.activeSnapshot.findId();
+    if (!snapshotId) return null;
+    return this.dataSource
+      .getRepository(EventEdition)
+      .findOne({ where: {id: eventId, snapshotId} });
   }
 
   private applyFilters(
