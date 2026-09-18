@@ -129,7 +129,7 @@ export class TrainingLibraryRepository {
     if (!snapshotId) return null;
     return this.dataSource
       .getRepository(EventEdition)
-      .findOne({ where: {id: eventId, snapshotId} });
+      .findOne({ where: { id: eventId, snapshotId } });
   }
 
   private applyFilters(

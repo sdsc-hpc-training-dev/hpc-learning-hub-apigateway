@@ -71,7 +71,7 @@ export class TrainingLibraryController {
 
   @Get('event-editions/:eventId')
   findEventEditionsById(
-    @Param('eventId') eventId: string
+    @Param('eventId') eventId: string,
   ): Promise<EventEditionResponseDto> {
     return this.trainingLibraryService.findEventEditionById(eventId);
   }

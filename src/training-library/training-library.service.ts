@@ -95,7 +95,9 @@ export class TrainingLibraryService {
     return editions.map((item) => this.toEventEdition(item));
   }
 
-  async findEventEditionById(eventId: string): Promise<EventEditionResponseDto> {
+  async findEventEditionById(
+    eventId: string,
+  ): Promise<EventEditionResponseDto> {
     const edition = await this.repository.findEventEditionById(eventId);
     if (!edition) {
       throw new NotFoundException(`Event "${eventId}" was not found`);

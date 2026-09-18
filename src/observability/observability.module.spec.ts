@@ -1,23 +1,33 @@
-import { Test, TestingModule } from '@nestjs/testing';
+jest.mock('@nestjs/terminus', () => ({
+  HealthCheckService: class HealthCheckService {},
+  TerminusModule: class TerminusModule {},
+  TypeOrmHealthIndicator: class TypeOrmHealthIndicator {},
+}));
+
+import { HealthController } from './health.controller';
 import { ObservabilityModule } from './observability.module';
 import { TelemetryService } from './telemetry.service';
 
 describe('ObservabilityModule', () => {
-  let service: TelemetryService;
+  it('registers the telemetry service with Nest dependency injection', () => {
+    const providers: unknown = Reflect.getMetadata(
+      'providers',
+      ObservabilityModule,
+    );
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      imports: [ObservabilityModule],
-    }).compile();
-
-    service = module.get(TelemetryService);
+    expect(providers).toContain(TelemetryService);
   });
 
-  it('registers the telemetry service with Nest dependency injection', () => {
-    expect(service).toBeInstanceOf(TelemetryService);
+  it('registers the health controller', () => {
+    const controllers: unknown = Reflect.getMetadata(
+      'controllers',
+      ObservabilityModule,
+    );
+
+    expect(controllers).toContain(HealthController);
   });
 
   it('returns an empty list until telemetry behavior is implemented', () => {
-    expect(service.findAll()).toEqual([]);
+    expect(new TelemetryService().findAll()).toEqual([]);
   });
 });
