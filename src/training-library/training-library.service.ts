@@ -82,9 +82,27 @@ export class TrainingLibraryService {
     return series.map((item) => this.toEventSeries(item));
   }
 
+  async findEventSeriesById(seriesId: string): Promise<EventSeriesResponseDto> {
+    const series = await this.repository.findEventSeriesById(seriesId);
+    if (!series) {
+      throw new NotFoundException(`Series "${seriesId}" was not found`);
+    }
+    return this.toEventSeries(series);
+  }
+
   async findEventEditions(): Promise<EventEditionResponseDto[]> {
     const editions = await this.repository.findEventEditions();
     return editions.map((item) => this.toEventEdition(item));
+  }
+
+  async findEventEditionById(
+    eventId: string,
+  ): Promise<EventEditionResponseDto> {
+    const edition = await this.repository.findEventEditionById(eventId);
+    if (!edition) {
+      throw new NotFoundException(`Event "${eventId}" was not found`);
+    }
+    return this.toEventEdition(edition);
   }
 
   private toFilters(query: MaterialQueryDto): MaterialFilters {

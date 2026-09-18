@@ -36,6 +36,7 @@ type RepositoryMethods = Pick<
   | 'findTools'
   | 'findSystems'
   | 'findEventSeries'
+  | 'findEventSeriesById'
   | 'findEventEditions'
 >;
 
@@ -84,6 +85,7 @@ const repositoryDouble = (): jest.Mocked<RepositoryMethods> => ({
   findTools: jest.fn(),
   findSystems: jest.fn(),
   findEventSeries: jest.fn(),
+  findEventSeriesById: jest.fn(),
   findEventEditions: jest.fn(),
 });
 
@@ -289,6 +291,30 @@ describe('TrainingLibraryService catalog lookups', () => {
     ]);
     await expect(service.findEventEditions()).resolves.toHaveLength(1);
   });
+
+  it('returns one event series as a public DTO', async () => {
+    repository.findEventSeriesById.mockResolvedValue(
+      entity(EventSeries, {
+        id: 'series-1',
+        name: 'Series',
+        reviewStatus: 'internal',
+      }),
+    );
+
+    await expect(service.findEventSeriesById('series-1')).resolves.toEqual({
+      id: 'series-1',
+      name: 'Series',
+    });
+    expect(repository.findEventSeriesById).toHaveBeenCalledWith('series-1');
+  });
+
+  it('returns not found when an event series is unavailable', async () => {
+    repository.findEventSeriesById.mockResolvedValue(null);
+
+    await expect(service.findEventSeriesById('missing')).rejects.toThrow(
+      new NotFoundException('Series "missing" was not found'),
+    );
+  });
 });
 
 describe('TrainingLibraryController', () => {
@@ -301,6 +327,7 @@ describe('TrainingLibraryController', () => {
       findTools: jest.fn().mockResolvedValue([]),
       findSystems: jest.fn().mockResolvedValue([]),
       findEventSeries: jest.fn().mockResolvedValue([]),
+      findEventSeriesById: jest.fn().mockResolvedValue({ id: 'series-1' }),
       findEventEditions: jest.fn().mockResolvedValue([]),
     };
     const controller = new TrainingLibraryController(
@@ -314,6 +341,7 @@ describe('TrainingLibraryController', () => {
     await controller.findTools();
     await controller.findSystems();
     await controller.findEventSeries();
+    await controller.findEventSeriesById('series-1');
     await controller.findEventEditions();
 
     expect(methods.findMaterials).toHaveBeenCalledWith({ search: 'hpc' });
@@ -323,6 +351,7 @@ describe('TrainingLibraryController', () => {
     expect(methods.findTools).toHaveBeenCalledTimes(1);
     expect(methods.findSystems).toHaveBeenCalledTimes(1);
     expect(methods.findEventSeries).toHaveBeenCalledTimes(1);
+    expect(methods.findEventSeriesById).toHaveBeenCalledWith('series-1');
     expect(methods.findEventEditions).toHaveBeenCalledTimes(1);
   });
 });
@@ -585,5 +614,29 @@ describe('TrainingLibraryRepository catalog lookups', () => {
     await expect(context.repository.findEventEditions()).resolves.toEqual([
       EventEdition,
     ]);
+  });
+
+  it('finds an event series only within the active snapshot', async () => {
+    const context = repositoryTestContext();
+    const series = entity(EventSeries, { id: 'series-1', name: 'Series' });
+    context.activeSnapshot.findId.mockResolvedValue('snapshot-active');
+    repositoryFor(context, EventSeries).findOne.mockResolvedValue(series);
+
+    await expect(
+      context.repository.findEventSeriesById('series-1'),
+    ).resolves.toEqual(series);
+    expect(repositoryFor(context, EventSeries).findOne).toHaveBeenCalledWith({
+      where: { id: 'series-1', snapshotId: 'snapshot-active' },
+    });
+  });
+
+  it('does not look up an event series without an active snapshot', async () => {
+    const context = repositoryTestContext();
+    context.activeSnapshot.findId.mockResolvedValue(null);
+
+    await expect(
+      context.repository.findEventSeriesById('series-1'),
+    ).resolves.toBeNull();
+    expect(repositoryFor(context, EventSeries).findOne).not.toHaveBeenCalled();
   });
 });

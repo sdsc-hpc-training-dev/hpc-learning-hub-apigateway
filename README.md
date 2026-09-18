@@ -131,9 +131,28 @@ The API uses the `/api/v1` base path. Check the current root endpoint with:
 curl http://localhost:3000/api/v1
 ```
 
+### Health endpoint
+
+`GET /api/v1/health` uses NestJS Terminus to verify that PostgreSQL is
+reachable. A healthy response includes the overall status and the Postgres
+indicator:
+
+```json
+{
+  "healthy": true,
+  "timestamp": "2026-09-18T00:00:00.000Z",
+  "services": {
+    "postgres": "up"
+  }
+}
+```
+
+If PostgreSQL cannot be reached, the endpoint responds with HTTP `503`.
+
 Training Library reads are available at:
 
 ```text
+GET /api/v1/health
 GET /api/v1/materials
 GET /api/v1/materials/:materialId
 GET /api/v1/materials/:materialId/resources
@@ -141,7 +160,9 @@ GET /api/v1/topics
 GET /api/v1/tools
 GET /api/v1/systems
 GET /api/v1/event-series
+GET /api/v1/event-series/:seriesId
 GET /api/v1/event-editions
+GET /api/v1/event-editions/:eventId
 ```
 
 `GET /api/v1/materials` accepts `search`, `topic`, `tool`, `system`, `eventSeries`,
