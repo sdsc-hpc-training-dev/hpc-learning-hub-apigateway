@@ -1,9 +1,3 @@
-jest.mock('@nestjs/terminus', () => ({
-  HealthCheckService: class HealthCheckService {},
-  TerminusModule: class TerminusModule {},
-  TypeOrmHealthIndicator: class TypeOrmHealthIndicator {},
-}));
-
 import { HealthController } from './health.controller';
 import { ObservabilityModule } from './observability.module';
 import { TelemetryService } from './telemetry.service';
