@@ -7,8 +7,5 @@
     "test/**/*.ts"
   ],
   "project": ["src/**/*.ts", "test/**/*.ts"],
-  "ignore": [
-    "src/database/migrations",
-    "src/database/seed"
-  ]
+  "ignore": ["src/database/migrations", "src/database/seed"]
 }
