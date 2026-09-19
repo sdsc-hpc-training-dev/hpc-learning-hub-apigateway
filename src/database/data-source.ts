@@ -32,7 +32,7 @@ const dataSource = new DataSource({
   database: requireDatabaseSetting('DB_DATABASE', process.env.DB_DATABASE),
   uuidExtension: 'pgcrypto',
   entities: [`${__dirname}/../**/*.entity{.ts,.js}`],
-  migrations: [`${__dirname}/../../migrations/*{.ts,.js}`],
+  migrations: [`${__dirname}//migrations/*{.ts,.js}`],
   synchronize: false,
   dropSchema: false,
 });
