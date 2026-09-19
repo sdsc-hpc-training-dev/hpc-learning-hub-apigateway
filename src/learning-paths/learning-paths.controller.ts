@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
 import { LearningPathResponseDto } from './dto/learning-path-response.dto';
 import { LearningPathsService } from './learning-paths.service';
 
@@ -12,7 +12,7 @@ export class LearningPathsController {
   }
 
   @Get(':pathId')
-  findOne(@Param('pathId') pathId: string): Promise<LearningPathResponseDto> {
+  findOne(@Param('pathId', new ParseUUIDPipe()) pathId: string): Promise<LearningPathResponseDto> {
     return this.learningPathsService.findOne(pathId);
   }
 }
