@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import type { MaterialQueryDto } from './dto/material-query.dto';
+import { MaterialQueryDto } from './dto/material-query.dto';
 import type {
   EventEditionResponseDto,
   EventSeriesResponseDto,

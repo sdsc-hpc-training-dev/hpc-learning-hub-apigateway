@@ -126,7 +126,7 @@ export class TrainingLibraryService {
   }
 
   private positiveInteger(
-    value: string | undefined,
+    value: number | undefined,
     name: string,
     fallback: number,
     maximum?: number,
