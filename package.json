@@ -36,7 +36,8 @@
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts --pretty",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
     "migration:show": "typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
-    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts"
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
+    "seed:learning-paths": "ts-node src/database/seed/seed-curated-learning-paths.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -88,6 +89,7 @@
     "collectCoverageFrom": [
       "**/*.ts",
       "!**/*.spec.ts",
+      "!database/seed/**/*.ts",
       "!main.ts",
       "!app.module.ts"
     ],
