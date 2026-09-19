@@ -133,23 +133,16 @@ curl http://localhost:3000/api/v1
 
 ### Health endpoint
 
-`GET /api/v1/health` uses NestJS Terminus to verify that PostgreSQL is
-reachable. A healthy response includes the overall status and the Postgres
-indicator:
+`GET /api/v1/health` is a lightweight process health endpoint. It always
+returns HTTP `200` with:
 
 ```json
 {
-  "healthy": true,
-  "timestamp": "2026-09-18T00:00:00.000Z",
-  "services": {
-    "postgres": "up"
-  }
+  "status": "ok"
 }
 ```
 
-If PostgreSQL cannot be reached, the endpoint responds with HTTP `503`.
-
-Training Library reads are available at:
+Public catalog and learning-path reads are available at:
 
 ```text
 GET /api/v1/health
@@ -163,6 +156,8 @@ GET /api/v1/event-series
 GET /api/v1/event-series/:seriesId
 GET /api/v1/event-editions
 GET /api/v1/event-editions/:eventId
+GET /api/v1/learning-paths
+GET /api/v1/learning-paths/:pathId
 ```
 
 `GET /api/v1/materials` accepts `search`, `topic`, `tool`, `system`, `eventSeries`,
