@@ -181,8 +181,8 @@ describe('TrainingLibraryService material listing', () => {
       eventEdition: 'edition-1',
       instructor: 'person-1',
       resourceType: 'video',
-      page: '2',
-      pageSize: '10',
+      page: 2,
+      pageSize: 10,
     });
 
     expect(repository.findMaterials).toHaveBeenCalledWith({
@@ -200,12 +200,9 @@ describe('TrainingLibraryService material listing', () => {
   });
 
   it.each([
-    [{ page: '0' }, 'page must be a positive integer'],
-    [{ page: '1.5' }, 'page must be a positive integer'],
-    [
-      { pageSize: '101' },
-      'pageSize must be a positive integer and at most 100',
-    ],
+    [{ page: 0 }, 'page must be a positive integer'],
+    [{ page: 1.5 }, 'page must be a positive integer'],
+    [{ pageSize: 101 }, 'pageSize must be a positive integer and at most 100'],
     [{ resourceType: 'book' }, 'resourceType is not supported'],
   ])('rejects an invalid material query', async (query, message) => {
     await expect(service.findMaterials(query)).rejects.toThrow(
