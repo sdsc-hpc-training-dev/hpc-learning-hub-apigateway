@@ -1,6 +1,8 @@
 import {
   ArgumentsHost,
   BadRequestException,
+  HttpException,
+  HttpStatus,
   NotFoundException,
 } from '@nestjs/common';
 import { HttpExceptionFilter } from './http-exception-filter';
@@ -38,6 +40,14 @@ function hostFor(url: string): {
   return { host, response };
 }
 
+function asErrorResponse(body: unknown): Record<string, unknown> {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw new Error('Expected an object error response');
+  }
+
+  return body as Record<string, unknown>;
+}
+
 describe('HttpExceptionFilter', () => {
   const filter = new HttpExceptionFilter();
 
@@ -55,7 +65,28 @@ describe('HttpExceptionFilter', () => {
         path: '/api/v1/event-editions/missing',
       }),
     );
-    expect(response.body).toHaveProperty('timestamp');
+    expect(asErrorResponse(response.body).timestamp).toEqual(
+      expect.any(String),
+    );
+  });
+
+  it('formats a string-based HTTP exception response', () => {
+    const { host, response } = hostFor('/api/v1/materials');
+
+    filter.catch(
+      new HttpException('A deliberate client error', HttpStatus.I_AM_A_TEAPOT),
+      host,
+    );
+
+    expect(response.statusCode).toBe(HttpStatus.I_AM_A_TEAPOT);
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        statusCode: HttpStatus.I_AM_A_TEAPOT,
+        error: 'Error',
+        message: 'A deliberate client error',
+        path: '/api/v1/materials',
+      }),
+    );
   });
 
   it('preserves validation messages from a bad-request exception', () => {
@@ -91,6 +122,9 @@ describe('HttpExceptionFilter', () => {
     );
     expect(JSON.stringify(response.body)).not.toContain(
       'database password leaked',
+    );
+    expect(asErrorResponse(response.body).timestamp).toEqual(
+      expect.any(String),
     );
   });
 });

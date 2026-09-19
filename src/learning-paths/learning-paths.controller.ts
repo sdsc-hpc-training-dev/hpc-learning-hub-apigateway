@@ -12,7 +12,9 @@ export class LearningPathsController {
   }
 
   @Get(':pathId')
-  findOne(@Param('pathId', new ParseUUIDPipe()) pathId: string): Promise<LearningPathResponseDto> {
+  findOne(
+    @Param('pathId', new ParseUUIDPipe()) pathId: string,
+  ): Promise<LearningPathResponseDto> {
     return this.learningPathsService.findOne(pathId);
   }
 }
