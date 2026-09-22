@@ -534,7 +534,8 @@ jobs:
           FORMAT_RESULT: ${{ needs.format.result }}
           LINT_RESULT: ${{ needs.lint.result }}
           TYPECHECK_RESULT: ${{ needs.typecheck.result }}
-          TEST_RESULT: ${{ needs.test.result }}
+          TEST_RESULT: ${{ needs.unit-test.result }}
+          NEWMAN_RESULT: ${{ needs.newman-tests.result }}
           DUPLICATION_RESULT: ${{ needs.duplication.result }}
           UNUSED_RESULT: ${{ needs.unused.result }}
           AUDIT_RESULT: ${{ needs.audit.result }}
@@ -549,6 +550,7 @@ jobs:
             "lint=$LINT_RESULT"
             "typecheck=$TYPECHECK_RESULT"
             "test=$TEST_RESULT"
+            "newman=$NEWMAN_RESULT"
             "duplication=$DUPLICATION_RESULT"
             "unused=$UNUSED_RESULT"
             "audit=$AUDIT_RESULT"
