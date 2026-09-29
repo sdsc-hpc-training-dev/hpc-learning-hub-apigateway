@@ -110,15 +110,15 @@ PersonalPathItem "0..*" --> "1" TrainingMaterial : references stable ID
 
 ## API surface and roles
 
-| Endpoint | Access | Purpose |
-| --- | --- | --- |
-| `POST /auth/register` | Public | Create a `LEARNER` account. |
-| `POST /auth/login` | Public | Verify password and start email-code verification. |
-| `POST /auth/verify-login` | Public | Verify the code and establish a session. |
-| `POST /auth/logout` | Authenticated | Revoke the current session. |
-| `GET /auth/me` | Authenticated | Return the current account and role. |
-| `PATCH /users/{userId}/role` | `ADMIN` | Assign `LEARNER`, `MAINTAINER`, or `ADMIN`. |
-| `DELETE /users/{userId}/role` | `ADMIN` | Demote the user to `LEARNER`; every user retains one role. |
+| Endpoint                                   | Access        | Purpose                                                    |
+| ------------------------------------------ | ------------- | ---------------------------------------------------------- |
+| `POST /auth/register`                      | Public        | Create a `LEARNER` account.                                |
+| `POST /auth/login`                         | Public        | Verify password and start email-code verification.         |
+| `POST /auth/verify-login`                  | Public        | Verify the code and establish a session.                   |
+| `POST /auth/logout`                        | Authenticated | Revoke the current session.                                |
+| `GET /auth/me`                             | Authenticated | Return the current account and role.                       |
+| `PATCH /users/{userId}/role`               | `ADMIN`       | Assign `LEARNER`, `MAINTAINER`, or `ADMIN`.                |
+| `DELETE /users/{userId}/role`              | `ADMIN`       | Demote the user to `LEARNER`; every user retains one role. |
 | `GET/POST/PATCH/DELETE /me/learning-paths` | Authenticated | Read and manage only the caller's personal learning paths. |
 
 `MAINTAINER` is reserved for future content-management endpoints. It has no
