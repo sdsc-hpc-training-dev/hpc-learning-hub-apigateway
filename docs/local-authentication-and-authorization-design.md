@@ -30,9 +30,6 @@ namespace IdentityAndLearning {
     +string username
     +string passwordHash
     +UserRole role
-    +boolean isActive
-    +datetime emailVerifiedAt
-    +datetime lastLoginAt
     +datetime createdAt
     +datetime updatedAt
   }

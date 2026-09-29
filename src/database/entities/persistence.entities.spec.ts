@@ -25,6 +25,8 @@ class MetadataDataSource extends DataSource {
 }
 
 const expectedTables = [
+  'auth_challenges',
+  'auth_sessions',
   'catalog_snapshots',
   'chunk_embeddings',
   'content_chunks',
@@ -43,6 +45,8 @@ const expectedTables = [
   'material_tools',
   'material_topics',
   'people',
+  'personal_learning_paths',
+  'personal_path_items',
   'snapshot_import_errors',
   'snapshot_import_runs',
   'system_aliases',
@@ -52,6 +56,7 @@ const expectedTables = [
   'topic_aliases',
   'topics',
   'training_materials',
+  'users',
 ];
 
 let metadata: EntityMetadata[];
@@ -184,6 +189,35 @@ describe('curated learning path persistence metadata', () => {
         ['path', 'curated_learning_paths'],
         ['material', 'training_materials'],
       ]),
+    );
+  });
+});
+
+describe('user persistence metadata', () => {
+  it('maps local account credentials, one role, and managed timestamps', () => {
+    const users = table('users');
+    const columns = new Map(
+      users.columns.map((column) => [column.databaseName, column]),
+    );
+
+    expect([...columns.keys()]).toEqual(
+      expect.arrayContaining([
+        'id',
+        'email',
+        'username',
+        'password_hash',
+        'role',
+        'created_at',
+        'updated_at',
+      ]),
+    );
+    expect(columns.get('role')?.enum).toEqual([
+      'LEARNER',
+      'MAINTAINER',
+      'ADMIN',
+    ]);
+    expect(users.uniques.map((unique) => unique.name)).toEqual(
+      expect.arrayContaining(['UQ_users_email', 'UQ_users_username']),
     );
   });
 });
