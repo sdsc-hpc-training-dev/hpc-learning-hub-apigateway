@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthModule } from './auth.module';
 import { AuthService } from './auth.service';
+import { AuthenticationRepository } from './persistence/auth.repository';
 
 describe('AuthModule', () => {
   let controller: AuthController;
@@ -10,7 +11,10 @@ describe('AuthModule', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [AuthModule],
-    }).compile();
+    })
+      .overrideProvider(AuthenticationRepository)
+      .useValue({})
+      .compile();
 
     controller = module.get(AuthController);
     service = module.get(AuthService);
