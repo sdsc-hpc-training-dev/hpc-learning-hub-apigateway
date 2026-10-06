@@ -235,6 +235,41 @@ Run the production build after `npm run build`:
 npm run start:prod
 ```
 
+### Postman API tests
+
+With PostgreSQL running, migrations applied, and a populated catalog, run:
+
+```bash
+npm run test:api
+```
+
+This starts the API and runs the Postman collection. The runner creates two
+temporary learner accounts and sessions, selects two active catalog materials,
+and removes the accounts, sessions, and their paths when the run finishes,
+including when assertions fail. Email delivery is not required. Use a local or
+dedicated test database.
+
+If the API is already running, use `npm run newman:run`. To run only the personal
+learning path cases:
+
+```bash
+npm run newman:run -- --folder "Personal Learning Paths"
+```
+
+The personal-path folder covers all five routes, authentication, owner isolation,
+input validation, persisted updates, item ordering, empty paths, and deletion.
+GitHub Actions applies migrations after restoring the catalog snapshot and runs
+the same collection with temporary sessions.
+
+To run that folder directly in Postman, use two fresh learner accounts with valid
+sessions and set `baseURL`, `personalPathCookieName` (`session` locally),
+`personalPathOwnerToken`, `personalPathOtherToken`, `personalPathOtherId`,
+`personalMaterialA`, and `personalMaterialB`. Set `personalMissingPathId` to an
+unused UUID and `personalMissingMaterialId` to a nonexistent material ID. Run the
+entire folder in order; it captures the created path IDs automatically and
+deletes those paths at the end. Cookie-jar handling is disabled for these requests
+so each case uses only its explicit session header.
+
 ## Stop the local services
 
 Stop PostgreSQL while preserving its data:

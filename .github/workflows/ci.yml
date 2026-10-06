@@ -198,7 +198,16 @@ jobs:
             --no-owner --no-privileges --exit-on-error' \
             < src/database/snapshots/learning-hub.dump
 
-      - name: Start API and run Newman tests
+      - name: Apply migrations after restoring snapshot
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: learning_hub
+          DB_PASSWORD: ci_password
+          DB_DATABASE: learning_hub
+        run: npm run migration:run
+
+      - name: Start API and run Newman tests with temporary user sessions
         env:
           DB_HOST: localhost
           DB_PORT: 5432

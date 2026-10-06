@@ -5,6 +5,7 @@ import {
   ArgumentsHost,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { STATUS_CODES } from 'http';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -24,7 +25,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const error =
         typeof exceptionResponse == 'string'
           ? 'Error'
-          : (exceptionResponse as Record<string, unknown>).error;
+          : ((exceptionResponse as Record<string, unknown>).error ??
+            Object.entries(STATUS_CODES).find(
+              ([code]) => Number(code) === status,
+            )?.[1] ??
+            'Error');
 
       response.status(status).json({
         statusCode: status,
