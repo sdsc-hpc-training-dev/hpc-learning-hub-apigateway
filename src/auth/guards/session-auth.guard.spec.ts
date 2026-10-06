@@ -2,7 +2,8 @@ import { UnauthorizedException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { UserRole } from '../../database/entities/user.entity';
 import { AuthenticationRepository } from '../persistence/auth.repository';
-import { sessionCookieName, SessionAuthGuard } from './session-auth.guard';
+import { SessionAuthGuard } from './session-auth.guard';
+import { sessionCookieName } from '../session-cookie';
 
 describe('SessionAuthGuard', () => {
   const findActiveSessionByTokenHash = jest.fn();
@@ -15,7 +16,7 @@ describe('SessionAuthGuard', () => {
 
   it('loads an active session from the hashed cookie token', async () => {
     const request = {
-      headers: { cookie: `${sessionCookieName}=plain-session-token` },
+      headers: { cookie: `${sessionCookieName()}=plain-session-token` },
     };
     const context = {
       switchToHttp: () => ({ getRequest: () => request }),
@@ -51,7 +52,7 @@ describe('SessionAuthGuard', () => {
     const context = {
       switchToHttp: () => ({
         getRequest: () => ({
-          headers: { cookie: `${sessionCookieName}=invalid-token` },
+          headers: { cookie: `${sessionCookieName()}=invalid-token` },
         }),
       }),
     };

@@ -10,8 +10,7 @@ import {
   CurrentUserIdentity,
 } from '../decorators/current-user.decorator';
 import { AuthenticationRepository } from '../persistence/auth.repository';
-
-export const sessionCookieName = '__Host-session';
+import { sessionCookieName } from '../session-cookie';
 
 @Injectable()
 export class SessionAuthGuard implements CanActivate {
@@ -38,12 +37,13 @@ export class SessionAuthGuard implements CanActivate {
 
   private sessionToken(cookieHeader: string | undefined): string | null {
     if (!cookieHeader) return null;
+    const cookieName = sessionCookieName();
 
     const cookie = cookieHeader
       .split(';')
       .map((part) => part.trim())
-      .find((part) => part.startsWith(`${sessionCookieName}=`));
+      .find((part) => part.startsWith(`${cookieName}=`));
 
-    return cookie ? cookie.slice(sessionCookieName.length + 1) : null;
+    return cookie ? cookie.slice(cookieName.length + 1) : null;
   }
 }
