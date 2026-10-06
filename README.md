@@ -160,6 +160,30 @@ GET /api/v1/learning-paths
 GET /api/v1/learning-paths/:pathId
 ```
 
+Personal learning paths require a session cookie:
+
+```text
+GET /api/v1/me/learning-paths
+POST /api/v1/me/learning-paths
+GET /api/v1/me/learning-paths/:pathId
+PATCH /api/v1/me/learning-paths/:pathId
+DELETE /api/v1/me/learning-paths/:pathId
+```
+
+Create accepts a nonblank `title` (up to 200 characters), optional `description`
+(up to 5000 characters), and optional `items` (up to 1000). Each item contains
+an existing `materialId` and a unique, nonnegative integer `position`; a material
+can appear only once per path. Empty paths are allowed. Existing materials from
+older catalog snapshots can still be referenced.
+
+PATCH preserves omitted fields, replaces the entire item list when `items` is
+supplied, and accepts `items: []` or `description: null` to clear those fields.
+An empty PATCH body is rejected. Ownership always comes from the session;
+missing or non-owned paths return `404`. Create returns `201`, reads and updates
+return `200`, and delete returns `204` without a body. See the
+[authentication design](docs/local-authentication-and-authorization-design.md)
+for example payloads.
+
 `GET /api/v1/materials` accepts `search`, `topic`, `tool`, `system`, `eventSeries`,
 `eventEdition`, `instructor`, `resourceType`, `page`, and `pageSize` query
 parameters. Relationship filters use canonical IDs.
