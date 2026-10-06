@@ -24,15 +24,4 @@ describe('AuthModule', () => {
     expect(controller).toBeInstanceOf(AuthController);
     expect(service).toBeInstanceOf(AuthService);
   });
-
-  it('returns an empty list until authentication behavior is implemented', () => {
-    expect(service.findAll()).toEqual([]);
-  });
-
-  it('delegates authentication retrieval from the controller to the service', () => {
-    const findAll = jest.spyOn(service, 'findAll');
-
-    expect(controller.findAll()).toEqual([]);
-    expect(findAll).toHaveBeenCalledTimes(1);
-  });
 });

@@ -112,7 +112,7 @@ PersonalPathItem "0..*" --> "1" TrainingMaterial : references stable ID
 
 | Endpoint                             | Access        | Purpose                                                    |
 | ------------------------------------ | ------------- | ---------------------------------------------------------- |
-| `POST /auth/register`                | Public        | Create a `LEARNER` account.                                |
+| `POST /users`                        | Public        | Create a `LEARNER` account.                                |
 | `POST /auth/login`                   | Public        | Verify password and start email-code verification.         |
 | `POST /auth/verify-login`            | Public        | Verify the code and establish a session.                   |
 | `POST /auth/logout`                  | Authenticated | Revoke the current session.                                |
@@ -129,9 +129,9 @@ PersonalPathItem "0..*" --> "1" TrainingMaterial : references stable ID
 V1 content-authoring endpoint. Bootstrap administrators should be provisioned
 from development environment variables, never a source-controlled password.
 
-## Authentication endpoint payloads
+## Endpoint payloads
 
-`POST /auth/register`
+`POST /users`
 
 ```json
 {
