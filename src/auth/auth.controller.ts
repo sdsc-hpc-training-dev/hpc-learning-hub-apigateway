@@ -6,13 +6,20 @@ import {
   Post,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { VerifyLoginDto } from './dto/verify-login.dto';
 import type { Request, Response } from 'express';
-import { sessionCookieName, sessionCookieOptions } from './session-cookie';
+import {
+  sessionCookieClearOptions,
+  sessionCookieName,
+  sessionCookieOptions,
+} from './session-cookie';
+import { SessionAuthGuard } from './guards/session-auth.guard';
+import type { AuthenticatedRequest } from './decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -44,8 +51,17 @@ export class AuthController {
   }
 
   @Post('logout')
-  logoutUser() {
-    return [];
+  @UseGuards(SessionAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logoutUser(
+    @Req() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (req.sessionId) {
+      await this.authService.logoutUser(req.sessionId);
+      res.clearCookie(sessionCookieName(), sessionCookieClearOptions());
+    }
+    return Promise.resolve();
   }
   // archive session and revoke cookie
 }

@@ -110,4 +110,13 @@ export class AuthenticationRepository {
       lastSeenAt: new Date(),
     });
   }
+
+  revokeSession(sessionId: string): Promise<void> {
+    this.dataSource.getRepository(AuthSession).update(
+      {id: sessionId},
+      {revokedAt: new Date()}
+    );
+
+    return Promise.resolve();
+  }
 }

@@ -101,6 +101,10 @@ export class AuthService {
     return session;
   }
 
+  async logoutUser(sessionId: string): Promise<void> {
+    this.repository.revokeSession(sessionId);
+  }
+
   private hashChallengeCode(code: string): string {
     return createHash('sha256').update(code).digest('base64url');
   }
