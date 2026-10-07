@@ -111,12 +111,9 @@ export class AuthenticationRepository {
     });
   }
 
-  revokeSession(sessionId: string): Promise<void> {
-    this.dataSource.getRepository(AuthSession).update(
-      {id: sessionId},
-      {revokedAt: new Date()}
-    );
-
-    return Promise.resolve();
+  async revokeSession(sessionId: string): Promise<void> {
+    await this.dataSource
+      .getRepository(AuthSession)
+      .update({ id: sessionId }, { revokedAt: new Date() });
   }
 }

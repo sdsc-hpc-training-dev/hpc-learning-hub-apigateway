@@ -2382,6 +2382,766 @@
           }
         }
       ]
+    },
+    {
+      "name": "Admin User Management",
+      "description": "Requires the temporary admin and learner fixtures from npm run newman:run. Run in order to verify role changes take effect on existing sessions.",
+      "item": [
+        {
+          "name": "List users without a session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseURL}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Change role without a session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Learner cannot list users",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Learner cannot promote themselves",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Admin lists accounts without credentials",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns safe account summaries', () => { const body = pm.response.json(); (Array.isArray(body) ? body : [body]).forEach(user => { pm.expect(user).to.have.all.keys('id', 'email', 'username', 'role'); pm.expect(['LEARNER', 'MAINTAINER', 'ADMIN']).to.include(user.role); }); });",
+                  "pm.test('includes test learner', () => pm.expect(pm.response.json().some(user => user.id === pm.variables.get('personalPathOwnerId'))).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Reject missing role",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Reject invalid role",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"OWNER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Reject null role",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Reject extra fields",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\",\n  \"password\": \"forged\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Reject malformed user ID",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/not-a-uuid/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Missing target returns 404",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalMissingPathId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', () => pm.response.to.have.status(404));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Promote learner to maintainer",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"MAINTAINER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns safe account summaries', () => { const body = pm.response.json(); (Array.isArray(body) ? body : [body]).forEach(user => { pm.expect(user).to.have.all.keys('id', 'email', 'username', 'role'); pm.expect(['LEARNER', 'MAINTAINER', 'ADMIN']).to.include(user.role); }); });",
+                  "pm.test('target role is MAINTAINER', () => { const body = pm.response.json(); pm.expect(body.id).to.eql(pm.variables.get('personalPathOwnerId')); pm.expect(body.role).to.eql('MAINTAINER'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Maintainer cannot list users with the same session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Maintainer cannot promote themselves",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Promote maintainer to administrator",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns safe account summaries', () => { const body = pm.response.json(); (Array.isArray(body) ? body : [body]).forEach(user => { pm.expect(user).to.have.all.keys('id', 'email', 'username', 'role'); pm.expect(['LEARNER', 'MAINTAINER', 'ADMIN']).to.include(user.role); }); });",
+                  "pm.test('target role is ADMIN', () => { const body = pm.response.json(); pm.expect(body.id).to.eql(pm.variables.get('personalPathOwnerId')); pm.expect(body.role).to.eql('ADMIN'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Promoted admin can list users with the same session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns safe account summaries', () => { const body = pm.response.json(); (Array.isArray(body) ? body : [body]).forEach(user => { pm.expect(user).to.have.all.keys('id', 'email', 'username', 'role'); pm.expect(['LEARNER', 'MAINTAINER', 'ADMIN']).to.include(user.role); }); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Setting the same role succeeds",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns safe account summaries', () => { const body = pm.response.json(); (Array.isArray(body) ? body : [body]).forEach(user => { pm.expect(user).to.have.all.keys('id', 'email', 'username', 'role'); pm.expect(['LEARNER', 'MAINTAINER', 'ADMIN']).to.include(user.role); }); });",
+                  "pm.test('target role is ADMIN', () => { const body = pm.response.json(); pm.expect(body.id).to.eql(pm.variables.get('personalPathOwnerId')); pm.expect(body.role).to.eql('ADMIN'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Demote target back to learner",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"LEARNER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns safe account summaries', () => { const body = pm.response.json(); (Array.isArray(body) ? body : [body]).forEach(user => { pm.expect(user).to.have.all.keys('id', 'email', 'username', 'role'); pm.expect(['LEARNER', 'MAINTAINER', 'ADMIN']).to.include(user.role); }); });",
+                  "pm.test('target role is LEARNER', () => { const body = pm.response.json(); pm.expect(body.id).to.eql(pm.variables.get('personalPathOwnerId')); pm.expect(body.role).to.eql('LEARNER'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Demoted user loses admin access with the same session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Public registration cannot assign an admin role",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"postman-registration@example.invalid\",\n  \"username\": \"postman_registration\",\n  \"password\": \"long-test-passphrase\",\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
     }
   ]
 }

@@ -102,7 +102,7 @@ export class AuthService {
   }
 
   async logoutUser(sessionId: string): Promise<void> {
-    this.repository.revokeSession(sessionId);
+    await this.repository.revokeSession(sessionId);
   }
 
   private hashChallengeCode(code: string): string {

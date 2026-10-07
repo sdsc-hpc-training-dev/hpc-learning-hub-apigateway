@@ -31,8 +31,9 @@ async function createFixtures(
     id,
     token: randomBytes(32).toString('base64url'),
   }));
-  const [owner, other] = sessions;
-  if (!owner || !other) throw new Error('Two test users are required');
+  const [owner, other, admin] = sessions;
+  if (!owner || !other || !admin)
+    throw new Error('Three test users are required');
   const passwordHash = await new PasswordService().hash(
     randomBytes(32).toString('base64url'),
   );
@@ -43,7 +44,7 @@ async function createFixtures(
         email: `postman-${id}@example.invalid`,
         username: `postman_${id.replaceAll('-', '')}`,
         passwordHash,
-        role: UserRole.LEARNER,
+        role: id === admin.id ? UserRole.ADMIN : UserRole.LEARNER,
       });
       await manager.getRepository(AuthSession).insert({
         userId: id,
@@ -60,6 +61,7 @@ async function createFixtures(
     personalPathOtherToken: other.token,
     personalPathOwnerId: owner.id,
     personalPathOtherId: other.id,
+    adminUserToken: admin.token,
     personalMaterialA: first.id,
     personalMaterialB: second.id,
     personalMissingPathId: randomUUID(),
@@ -104,7 +106,7 @@ async function cleanupFixtures(
 
 async function main(): Promise<void> {
   const directory = await mkdtemp(join(tmpdir(), 'learning-hub-postman-'));
-  const userIds = [randomUUID(), randomUUID()];
+  const userIds = [randomUUID(), randomUUID(), randomUUID()];
   let seeded = false;
   try {
     await dataSource.initialize();

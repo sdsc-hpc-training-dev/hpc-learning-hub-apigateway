@@ -8,6 +8,7 @@ import { User } from '../database/entities/user.entity';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UsersRepository } from './persistence/user.repository';
+import { UpdateUserRoleDto } from './dto/update-role.dto';
 
 @Injectable()
 export class UsersService {
@@ -53,5 +54,24 @@ export class UsersService {
       username: user.username,
       role: user.role,
     };
+  }
+
+  async findAllUsers(): Promise<UserResponseDto[]> {
+    const users = await this.repository.findAllUsers();
+    return users.map((user) => this.toResponse(user));
+  }
+
+  async updateRole(
+    adminUserId: string,
+    userId: string,
+    input: UpdateUserRoleDto,
+  ): Promise<UserResponseDto> {
+    const user = await this.repository.updateRole(
+      adminUserId,
+      userId,
+      input.role,
+    );
+    if (!user) throw new NotFoundException('User not found');
+    return this.toResponse(user);
   }
 }

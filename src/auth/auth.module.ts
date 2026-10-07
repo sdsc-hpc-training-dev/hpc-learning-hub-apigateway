@@ -5,6 +5,7 @@ import { PasswordService } from './password.service';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 import { AuthenticationRepository } from './persistence/auth.repository';
 import { AuthenticationEmailService } from './authentication-email.service';
+import { AdminAuthGuard } from './guards/admin-auth.guard';
 
 @Module({
   controllers: [AuthController],
@@ -14,7 +15,13 @@ import { AuthenticationEmailService } from './authentication-email.service';
     AuthenticationRepository,
     AuthenticationEmailService,
     SessionAuthGuard,
+    AdminAuthGuard,
   ],
-  exports: [PasswordService, SessionAuthGuard, AuthenticationRepository],
+  exports: [
+    PasswordService,
+    SessionAuthGuard,
+    AuthenticationRepository,
+    AdminAuthGuard,
+  ],
 })
 export class AuthModule {}
