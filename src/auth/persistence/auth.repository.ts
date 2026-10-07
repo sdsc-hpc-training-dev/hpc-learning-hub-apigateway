@@ -7,7 +7,7 @@ import {
 import { AuthSession } from '../../database/entities/auth-session.entity';
 import { User } from '../../database/entities/user.entity';
 
-export const maximumLoginChallengeAttempts = 5;
+const maximumLoginChallengeAttempts = 5;
 
 function activeLoginChallenge(challengeId: string) {
   return {
