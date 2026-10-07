@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthModule } from './auth.module';
 import { AuthService } from './auth.service';
+import { AuthenticationRepository } from './persistence/auth.repository';
 
 describe('AuthModule', () => {
   let controller: AuthController;
@@ -10,7 +11,10 @@ describe('AuthModule', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [AuthModule],
-    }).compile();
+    })
+      .overrideProvider(AuthenticationRepository)
+      .useValue({})
+      .compile();
 
     controller = module.get(AuthController);
     service = module.get(AuthService);
@@ -19,16 +23,5 @@ describe('AuthModule', () => {
   it('registers the controller and service with Nest dependency injection', () => {
     expect(controller).toBeInstanceOf(AuthController);
     expect(service).toBeInstanceOf(AuthService);
-  });
-
-  it('returns an empty list until authentication behavior is implemented', () => {
-    expect(service.findAll()).toEqual([]);
-  });
-
-  it('delegates authentication retrieval from the controller to the service', () => {
-    const findAll = jest.spyOn(service, 'findAll');
-
-    expect(controller.findAll()).toEqual([]);
-    expect(findAll).toHaveBeenCalledTimes(1);
   });
 });

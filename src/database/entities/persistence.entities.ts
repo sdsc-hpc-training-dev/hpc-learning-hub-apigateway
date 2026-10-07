@@ -33,8 +33,20 @@ import {
 } from './curated-learning-path.entity';
 import { SnapshotImportError } from './snapshot-import-error.entity';
 import { SnapshotImportRun } from './snapshot-import-run.entity';
+import { AuthChallenge } from './auth-challenge.entity';
+import { AuthSession } from './auth-session.entity';
+import {
+  PersonalLearningPath,
+  PersonalPathItem,
+} from './personal-learning-path.entity';
+import { User } from './user.entity';
 
 export const persistenceEntities = [
+  User,
+  AuthSession,
+  AuthChallenge,
+  PersonalLearningPath,
+  PersonalPathItem,
   CatalogSnapshot,
   SnapshotImportRun,
   SnapshotImportError,

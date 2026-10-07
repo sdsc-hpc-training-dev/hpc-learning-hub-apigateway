@@ -4,6 +4,7 @@ import {
   HttpException,
   HttpStatus,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { HttpExceptionFilter } from './http-exception-filter';
 
@@ -47,6 +48,20 @@ function asErrorResponse(body: unknown): Record<string, unknown> {
 
   return body as Record<string, unknown>;
 }
+
+it('includes the error field for a default unauthorized exception', () => {
+  const { host, response } = hostFor('/api/v1/me/learning-paths');
+  new HttpExceptionFilter().catch(new UnauthorizedException(), host);
+  expect(response.statusCode).toBe(401);
+  expect(response.body).toEqual(
+    expect.objectContaining({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Unauthorized',
+      path: '/api/v1/me/learning-paths',
+    }),
+  );
+});
 
 describe('HttpExceptionFilter', () => {
   const filter = new HttpExceptionFilter();

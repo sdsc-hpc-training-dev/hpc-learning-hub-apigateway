@@ -105,8 +105,14 @@
               "host": ["{{baseURL}}"],
               "path": ["materials"],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "pageSize", "value": "5" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "5"
+                }
               ]
             }
           },
@@ -189,7 +195,12 @@
               "raw": "{{baseURL}}/materials?page=0",
               "host": ["{{baseURL}}"],
               "path": ["materials"],
-              "query": [{ "key": "page", "value": "0" }]
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                }
+              ]
             }
           },
           "event": [
@@ -573,6 +584,2557 @@
                   "pm.test('returns 404 Not Found', () => pm.response.to.have.status(404));",
                   "const body = pm.response.json();",
                   "pm.test('returns the standard API error contract', () => { pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(404); pm.expect(body.error).to.eql('Not Found'); pm.expect(body.path).to.include('/event-editions/'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Personal Learning Paths",
+      "description": "Run in order with two fresh user sessions. npm run newman:run creates and cleans up fixtures automatically. For Postman, supply the fixture environment variables documented in README.md.",
+      "item": [
+        {
+          "name": "GET without a session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseURL}}/me/learning-paths"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "POST without a session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Unauthenticated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET without a session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseURL}}/me/learning-paths/{{personalMissingPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "PATCH without a session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalMissingPathId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Unauthenticated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "DELETE without a session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseURL}}/me/learning-paths/{{personalMissingPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Reject invalid session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}=invalid-token"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Owner starts with no paths",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "['personalPathId', 'personalEmptyPathId', 'personalOtherPathId'].forEach(key => pm.collectionVariables.unset(key));",
+                  "['personalPathOwnerToken', 'personalPathOtherToken', 'personalMaterialA', 'personalMaterialB', 'personalMissingPathId', 'personalMissingMaterialId'].forEach(key => { if (!pm.variables.get(key)) throw new Error('Missing fixture variable: ' + key); });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('fresh owner has no paths', () => pm.expect(pm.response.json()).to.eql([]));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create empty path",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Empty plan\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('empty items and null description', () => { pm.expect(body.items).to.eql([]); pm.expect(body.description).to.eql(null); });",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('personalEmptyPathId', body.id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create path with unsorted items",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"  My GPU plan  \",\n  \"description\": \"Original notes\",\n  \"items\": [\n    {\n      \"materialId\": \"{{personalMaterialB}}\",\n      \"position\": 1\n    },\n    {\n      \"materialId\": \"{{personalMaterialA}}\",\n      \"position\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('title is trimmed', () => pm.expect(body.title).to.eql('My GPU plan'));",
+                  "pm.test('items are ordered and complete', () => pm.expect(pm.response.json().items).to.eql([{ materialId: pm.variables.get('personalMaterialA'), position: 0 }, { materialId: pm.variables.get('personalMaterialB'), position: 1 }]));",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('personalPathId', body.id); pm.collectionVariables.set('personalOriginalCreatedAt', body.createdAt); }"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read created path",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns the created path', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('personalPathId')));",
+                  "pm.test('items are ordered and complete', () => pm.expect(pm.response.json().items).to.eql([{ materialId: pm.variables.get('personalMaterialA'), position: 0 }, { materialId: pm.variables.get('personalMaterialB'), position: 1 }]));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create another user\u2019s path",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOtherToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Other user plan\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('personalOtherPathId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List only owner paths despite owner query parameter",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths?ownerUserId={{personalPathOtherId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('includes both owner paths and no other user path', () => pm.expect(pm.response.json().map(path => path.id)).to.have.members([pm.collectionVariables.get('personalPathId'), pm.collectionVariables.get('personalEmptyPathId')]));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Other user lists only their path",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOtherToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('other user sees only their own path', () => pm.expect(pm.response.json().map(path => path.id)).to.eql([pm.collectionVariables.get('personalOtherPathId')]));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET another user\u2019s path is hidden",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOtherToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "PATCH another user\u2019s path is hidden",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOtherToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Stolen\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "DELETE another user\u2019s path is hidden",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOtherToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Patch only title preserves items and description",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated plan\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('preserves omitted fields and original creation timestamp', () => { pm.expect(body.title).to.eql('Updated plan'); pm.expect(body.description).to.eql('Original notes'); pm.expect(body.createdAt).to.eql(pm.collectionVariables.get('personalOriginalCreatedAt')); });",
+                  "pm.test('items are ordered and complete', () => pm.expect(pm.response.json().items).to.eql([{ materialId: pm.variables.get('personalMaterialA'), position: 0 }, { materialId: pm.variables.get('personalMaterialB'), position: 1 }]));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Replace the complete item list",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"materialId\": \"{{personalMaterialB}}\",\n      \"position\": 3\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('old items are replaced', () => pm.expect(pm.response.json().items).to.eql([{ materialId: pm.variables.get('personalMaterialB'), position: 3 }]));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read persisted replacement",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('replacement persisted', () => pm.expect(pm.response.json().items).to.eql([{ materialId: pm.variables.get('personalMaterialB'), position: 3 }]));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Reject replacement with unknown material",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"materialId\": \"{{personalMissingMaterialId}}\",\n      \"position\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Failed replacement preserves the existing path",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('invalid update leaves stored fields untouched', () => { const body = pm.response.json(); pm.expect(body.title).to.eql('Updated plan'); pm.expect(body.description).to.eql('Original notes'); pm.expect(body.items).to.eql([{ materialId: pm.variables.get('personalMaterialB'), position: 3 }]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Clear description and items",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": null,\n  \"items\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('fields are cleared', () => { const body = pm.response.json(); pm.expect(body.description).to.eql(null); pm.expect(body.items).to.eql([]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read persisted cleared path",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('cleared fields persist', () => { const body = pm.response.json(); pm.expect(body.description).to.eql(null); pm.expect(body.items).to.eql([]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create rejects blank title",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"   \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create rejects forged owner",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Plan\",\n  \"ownerUserId\": \"{{personalPathOtherId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create rejects negative position",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Plan\",\n  \"items\": [\n    {\n      \"materialId\": \"{{personalMaterialA}}\",\n      \"position\": -1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create rejects fractional position",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Plan\",\n  \"items\": [\n    {\n      \"materialId\": \"{{personalMaterialA}}\",\n      \"position\": 0.5\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create rejects duplicate material",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Plan\",\n  \"items\": [\n    {\n      \"materialId\": \"{{personalMaterialA}}\",\n      \"position\": 0\n    },\n    {\n      \"materialId\": \"{{personalMaterialA}}\",\n      \"position\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create rejects duplicate position",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Plan\",\n  \"items\": [\n    {\n      \"materialId\": \"{{personalMaterialA}}\",\n      \"position\": 0\n    },\n    {\n      \"materialId\": \"{{personalMaterialB}}\",\n      \"position\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create rejects unknown material",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Plan\",\n  \"items\": [\n    {\n      \"materialId\": \"{{personalMissingMaterialId}}\",\n      \"position\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create rejects null items",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Plan\",\n  \"items\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create rejects nested item arrays",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Plan\",\n  \"items\": [\n    [\n      {\n        \"materialId\": \"{{personalMaterialA}}\",\n        \"position\": 0\n      }\n    ]\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Patch rejects empty body",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Patch rejects null title",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Patch rejects null items",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Patch rejects forged owner",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ownerUserId\": \"{{personalPathOtherId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Patch rejects duplicate material",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"materialId\": \"{{personalMaterialA}}\",\n      \"position\": 0\n    },\n    {\n      \"materialId\": \"{{personalMaterialA}}\",\n      \"position\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET missing path",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalMissingPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET invalid UUID",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/not-a-uuid"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "PATCH missing path",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalMissingPathId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Missing\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "PATCH invalid UUID",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/not-a-uuid",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Missing\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "DELETE missing path",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalMissingPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "DELETE invalid UUID",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/not-a-uuid"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete empty path",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalEmptyPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete personalized path",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Deleted path is not readable",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Repeated delete reports missing path",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Owner list is empty after deletion",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('owner paths were removed', () => pm.expect(pm.response.json()).to.eql([]));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete other user path with its owner session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOtherToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths/{{personalOtherPathId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Other user list is empty after deletion",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOtherToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/me/learning-paths"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('other user path was removed', () => pm.expect(pm.response.json()).to.eql([]));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('personal path response contract', () => {",
+              "  if (pm.response.code === 204) { pm.expect(pm.response.text()).to.eql(''); return; }",
+              "  const body = pm.response.json();",
+              "  if (pm.response.code >= 400) {",
+              "    pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path');",
+              "    pm.expect(body.statusCode).to.eql(pm.response.code);",
+              "    pm.expect(body.path).to.include('/me/learning-paths');",
+              "    return;",
+              "  }",
+              "  const paths = Array.isArray(body) ? body : [body];",
+              "  paths.forEach(path => {",
+              "    pm.expect(path).to.have.all.keys('id', 'title', 'description', 'createdAt', 'updatedAt', 'items');",
+              "    pm.expect(path.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+              "    pm.expect(path.title).to.be.a('string').and.not.eql('');",
+              "    pm.expect(path.description === null || typeof path.description === 'string').to.eql(true);",
+              "    pm.expect(Number.isNaN(Date.parse(path.createdAt))).to.eql(false);",
+              "    pm.expect(Number.isNaN(Date.parse(path.updatedAt))).to.eql(false);",
+              "    pm.expect(Date.parse(path.updatedAt)).to.be.at.least(Date.parse(path.createdAt));",
+              "    pm.expect(path.items).to.be.an('array');",
+              "    path.items.forEach((item, index) => {",
+              "      pm.expect(item).to.have.all.keys('materialId', 'position');",
+              "      pm.expect(item.materialId).to.be.a('string');",
+              "      pm.expect(Number.isInteger(item.position) && item.position >= 0).to.eql(true);",
+              "      if (index > 0) pm.expect(item.position).to.be.above(path.items[index - 1].position);",
+              "    });",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin User Management",
+      "description": "Requires the temporary admin and learner fixtures from npm run newman:run. Run in order to verify role changes take effect on existing sessions.",
+      "item": [
+        {
+          "name": "List users without a session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseURL}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Change role without a session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Learner cannot list users",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Learner cannot promote themselves",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Admin lists accounts without credentials",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns safe account summaries', () => { const body = pm.response.json(); (Array.isArray(body) ? body : [body]).forEach(user => { pm.expect(user).to.have.all.keys('id', 'email', 'username', 'role'); pm.expect(['LEARNER', 'MAINTAINER', 'ADMIN']).to.include(user.role); }); });",
+                  "pm.test('includes test learner', () => pm.expect(pm.response.json().some(user => user.id === pm.variables.get('personalPathOwnerId'))).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Reject missing role",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Reject invalid role",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"OWNER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Reject null role",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Reject extra fields",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\",\n  \"password\": \"forged\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Reject malformed user ID",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/not-a-uuid/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Missing target returns 404",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalMissingPathId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', () => pm.response.to.have.status(404));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Promote learner to maintainer",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"MAINTAINER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns safe account summaries', () => { const body = pm.response.json(); (Array.isArray(body) ? body : [body]).forEach(user => { pm.expect(user).to.have.all.keys('id', 'email', 'username', 'role'); pm.expect(['LEARNER', 'MAINTAINER', 'ADMIN']).to.include(user.role); }); });",
+                  "pm.test('target role is MAINTAINER', () => { const body = pm.response.json(); pm.expect(body.id).to.eql(pm.variables.get('personalPathOwnerId')); pm.expect(body.role).to.eql('MAINTAINER'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Maintainer cannot list users with the same session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Maintainer cannot promote themselves",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Promote maintainer to administrator",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns safe account summaries', () => { const body = pm.response.json(); (Array.isArray(body) ? body : [body]).forEach(user => { pm.expect(user).to.have.all.keys('id', 'email', 'username', 'role'); pm.expect(['LEARNER', 'MAINTAINER', 'ADMIN']).to.include(user.role); }); });",
+                  "pm.test('target role is ADMIN', () => { const body = pm.response.json(); pm.expect(body.id).to.eql(pm.variables.get('personalPathOwnerId')); pm.expect(body.role).to.eql('ADMIN'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Promoted admin can list users with the same session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns safe account summaries', () => { const body = pm.response.json(); (Array.isArray(body) ? body : [body]).forEach(user => { pm.expect(user).to.have.all.keys('id', 'email', 'username', 'role'); pm.expect(['LEARNER', 'MAINTAINER', 'ADMIN']).to.include(user.role); }); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Setting the same role succeeds",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns safe account summaries', () => { const body = pm.response.json(); (Array.isArray(body) ? body : [body]).forEach(user => { pm.expect(user).to.have.all.keys('id', 'email', 'username', 'role'); pm.expect(['LEARNER', 'MAINTAINER', 'ADMIN']).to.include(user.role); }); });",
+                  "pm.test('target role is ADMIN', () => { const body = pm.response.json(); pm.expect(body.id).to.eql(pm.variables.get('personalPathOwnerId')); pm.expect(body.role).to.eql('ADMIN'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Demote target back to learner",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{adminUserToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users/{{personalPathOwnerId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"LEARNER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns safe account summaries', () => { const body = pm.response.json(); (Array.isArray(body) ? body : [body]).forEach(user => { pm.expect(user).to.have.all.keys('id', 'email', 'username', 'role'); pm.expect(['LEARNER', 'MAINTAINER', 'ADMIN']).to.include(user.role); }); });",
+                  "pm.test('target role is LEARNER', () => { const body = pm.response.json(); pm.expect(body.id).to.eql(pm.variables.get('personalPathOwnerId')); pm.expect(body.role).to.eql('LEARNER'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Demoted user loses admin access with the same session",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{personalPathCookieName}}={{personalPathOwnerToken}}"
+              }
+            ],
+            "url": "{{baseURL}}/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Public registration cannot assign an admin role",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseURL}}/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"postman-registration@example.invalid\",\n  \"username\": \"postman_registration\",\n  \"password\": \"long-test-passphrase\",\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
                 ]
               }
             }
