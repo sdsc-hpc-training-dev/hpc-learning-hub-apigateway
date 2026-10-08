@@ -15,6 +15,7 @@ const user: User = {
   sessions: [],
   challenges: [],
   personalLearningPaths: [],
+  bookmarks: [],
 };
 
 describe('UsersService', () => {

@@ -27,6 +27,7 @@ class MetadataDataSource extends DataSource {
 const expectedTables = [
   'auth_challenges',
   'auth_sessions',
+  'bookmarks',
   'catalog_snapshots',
   'chunk_embeddings',
   'content_chunks',
@@ -219,6 +220,50 @@ describe('user persistence metadata', () => {
     expect(users.uniques.map((unique) => unique.name)).toEqual(
       expect.arrayContaining(['UQ_users_email', 'UQ_users_username']),
     );
+  });
+});
+
+describe('bookmark persistence metadata', () => {
+  it('maps owner-scoped material saves with integrity and lookup constraints', () => {
+    const bookmarks = table('bookmarks');
+    const columns = new Map(
+      bookmarks.columns.map((column) => [column.databaseName, column]),
+    );
+    const relations = new Map(
+      bookmarks.relations.map((relation) => [relation.propertyName, relation]),
+    );
+
+    expect([...columns.keys()]).toEqual(
+      expect.arrayContaining(['id', 'user_id', 'material_id', 'created_at']),
+    );
+    expect(columns.get('id')?.isPrimary).toBe(true);
+    expect(columns.get('user_id')?.type).toBe('uuid');
+    expect(columns.get('material_id')?.type).toBe('text');
+    expect(bookmarks.uniques.map((unique) => unique.name)).toContain(
+      'UQ_bookmarks_user_material',
+    );
+    expect(bookmarks.indices.map((index) => index.givenName)).toContain(
+      'IDX_bookmarks_user_created',
+    );
+    expect(relations.get('user')?.inverseEntityMetadata.tableName).toBe(
+      'users',
+    );
+    expect(relations.get('user')?.onDelete).toBe('CASCADE');
+    expect(relations.get('material')?.inverseEntityMetadata.tableName).toBe(
+      'training_materials',
+    );
+    expect(relations.get('material')?.onDelete).toBe('RESTRICT');
+  });
+
+  it('exposes bookmarks as the inverse user relation', () => {
+    const users = table('users');
+    const bookmarks = users.relations.find(
+      (relation) => relation.propertyName === 'bookmarks',
+    );
+
+    expect(bookmarks?.relationType).toBe('one-to-many');
+    expect(bookmarks?.inverseEntityMetadata.tableName).toBe('bookmarks');
+    expect(bookmarks?.inverseRelation?.propertyName).toBe('user');
   });
 });
 

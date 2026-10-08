@@ -40,6 +40,7 @@ import {
   PersonalPathItem,
 } from './personal-learning-path.entity';
 import { User } from './user.entity';
+import { Bookmark } from './bookmark.entity';
 
 export const persistenceEntities = [
   User,
@@ -47,6 +48,7 @@ export const persistenceEntities = [
   AuthChallenge,
   PersonalLearningPath,
   PersonalPathItem,
+  Bookmark,
   CatalogSnapshot,
   SnapshotImportRun,
   SnapshotImportError,

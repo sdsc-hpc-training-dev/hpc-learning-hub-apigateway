@@ -10,6 +10,7 @@ import {
 import { AuthChallenge } from './auth-challenge.entity';
 import { AuthSession } from './auth-session.entity';
 import { PersonalLearningPath } from './personal-learning-path.entity';
+import { Bookmark } from './bookmark.entity';
 
 export enum UserRole {
   LEARNER = 'LEARNER',
@@ -54,4 +55,7 @@ export class User {
 
   @OneToMany(() => PersonalLearningPath, (path) => path.owner)
   personalLearningPaths!: PersonalLearningPath[];
+
+  @OneToMany(() => Bookmark, (bookmark) => bookmark.user)
+  bookmarks!: Bookmark[];
 }
