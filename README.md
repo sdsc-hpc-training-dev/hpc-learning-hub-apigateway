@@ -283,6 +283,37 @@ curl -b /tmp/learning-hub-cookies.txt -c /tmp/learning-hub-cookies.txt \
 Logout waits for session revocation before clearing the cookie. Further requests
 using that session return `401`, including repeated logout requests.
 
+### Saved materials
+
+Saved materials are bookmarks and require a session cookie:
+
+| Endpoint                                  | Description                                         |
+| ----------------------------------------- | --------------------------------------------------- |
+| `GET /api/v1/me/bookmarks`                | List the caller's saved materials; `200`.           |
+| `POST /api/v1/me/bookmarks`               | Save an existing catalog material; `201`.           |
+| `DELETE /api/v1/me/bookmarks/:materialId` | Remove the caller's bookmark by material ID; `204`. |
+
+POST accepts a canonical material ID, rather than a bookmark UUID:
+
+```json
+{
+  "materialId": "replace-with-material-id"
+}
+```
+
+The ID must be a nonblank string of up to 254 characters. POST returns `id`,
+`materialId`, and `createdAt`; GET returns an array of the same fields, newest
+saves first, or `[]` when none exist. Full catalog material details are available
+from `GET /api/v1/materials/:materialId`.
+
+All authenticated roles can manage their own bookmarks. Ownership comes from
+the session, and clients cannot supply a user ID. Missing sessions return `401`,
+invalid input returns `400`, nonexistent materials return `404` on POST, and
+saving the same material twice returns `409`. DELETE returns `204` without a
+body even if the caller has no bookmark for that material; it does not remove
+another user's bookmark. Removing a bookmark leaves existing personal-path
+items intact.
+
 ### Personal learning paths
 
 Personal learning paths require a session cookie:
@@ -297,9 +328,10 @@ Personal learning paths require a session cookie:
 
 Create accepts a nonblank `title` (up to 200 characters), optional `description`
 (up to 5000 characters), and optional `items` (up to 1000). Each item contains
-an existing `materialId` and a unique, nonnegative integer `position`; a material
-can appear only once per path. Empty paths are allowed. Existing materials from
-older catalog snapshots can still be referenced.
+an existing `materialId` bookmarked by the caller and a unique, nonnegative
+integer `position`; a material can appear only once per path. Empty paths are
+allowed. Existing materials from older catalog snapshots can still be referenced
+when bookmarked.
 
 PATCH preserves omitted fields, replaces the entire item list when `items` is
 supplied, and accepts `items: []` or `description: null` to clear those fields.
@@ -308,6 +340,12 @@ missing or non-owned paths return `404`. Create returns `201`, reads and updates
 return `200`, and delete returns `204` without a body. See the
 [authentication design](docs/local-authentication-and-authorization-design.md)
 for example payloads.
+
+Create and item replacement validate every supplied material against the
+caller's bookmarks and the catalog. Unbookmarked materials return `400`, and a
+rejected replacement leaves the path unchanged. After removing a bookmark,
+title or description changes still work when `items` is omitted, but resubmitting
+that material in `items` requires bookmarking it again.
 
 List returns `[]` when the caller has no paths. Each path contains `id`, `title`,
 `description`, `createdAt`, `updatedAt`, and `items` ordered by `position`.
@@ -372,7 +410,8 @@ npm run test:api
 
 This starts the API and runs the Postman collection. The runner creates two
 temporary learners, one administrator, and their sessions, selects two active
-catalog materials, and removes the accounts, sessions, and their paths when the
+catalog materials and bookmarks them for the path owner, and removes the
+accounts, sessions, bookmarks, and their paths when the
 run finishes, including when assertions fail. Email delivery is not required. Use a local or
 dedicated test database.
 
@@ -397,7 +436,9 @@ To run that folder directly in Postman, use two fresh learner accounts with vali
 sessions and set `baseURL`, `personalPathCookieName` (`session` locally),
 `personalPathOwnerToken`, `personalPathOtherToken`, `personalPathOtherId`,
 `personalMaterialA`, and `personalMaterialB`. Set `personalMissingPathId` to an
-unused UUID and `personalMissingMaterialId` to a nonexistent material ID. Run the
+unused UUID and `personalMissingMaterialId` to a nonexistent material ID. Bookmark
+both `personalMaterialA` and `personalMaterialB` using the path owner's session
+before running the personal-path folder. Run the
 entire folder in order; it captures the created path IDs automatically and
 deletes those paths at the end. Cookie-jar handling is disabled for these requests
 so each case uses only its explicit session header.

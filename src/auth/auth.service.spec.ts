@@ -17,6 +17,7 @@ const user: User = {
   sessions: [],
   challenges: [],
   personalLearningPaths: [],
+  bookmarks: [],
 };
 
 const input: LoginDto = {

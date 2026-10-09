@@ -8,6 +8,7 @@ import { PasswordService } from '../../auth/password.service';
 import { sessionCookieName } from '../../auth/session-cookie';
 import dataSource from '../data-source';
 import { AuthSession } from '../entities/auth-session.entity';
+import { Bookmark } from '../entities/bookmark.entity';
 import { TrainingMaterial } from '../entities/catalog.entity';
 import { SnapshotStatus } from '../entities/persistence.enums';
 import { User, UserRole } from '../entities/user.entity';
@@ -53,6 +54,10 @@ async function createFixtures(
         revokedAt: null,
       });
     }
+    await manager.getRepository(Bookmark).insert([
+      { userId: owner.id, materialId: first.id },
+      { userId: owner.id, materialId: second.id },
+    ]);
   });
   return {
     baseURL: process.env.POSTMAN_BASE_URL ?? 'http://localhost:3000/api/v1',
