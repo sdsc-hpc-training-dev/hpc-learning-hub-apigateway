@@ -13,6 +13,19 @@ function parseDatabasePort(value: string): number {
   return port;
 }
 
+export function parseDatabaseSslMode(
+  value: string | undefined,
+): false | { rejectUnauthorized: true } {
+  const mode = value?.trim().toLowerCase() ?? 'disable';
+  if (['disable', 'false', 'off'].includes(mode)) return false;
+  if (['require', 'verify-ca', 'verify-full', 'true', 'on'].includes(mode)) {
+    return { rejectUnauthorized: true };
+  }
+  throw new Error(
+    'DB_SSL_MODE must be disable, require, verify-ca, or verify-full',
+  );
+}
+
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
@@ -24,6 +37,7 @@ function parseDatabasePort(value: string): number {
         username: config.getOrThrow<string>('DB_USERNAME'),
         password: config.getOrThrow<string>('DB_PASSWORD'),
         database: config.getOrThrow<string>('DB_DATABASE'),
+        ssl: parseDatabaseSslMode(config.get<string>('DB_SSL_MODE', 'disable')),
         uuidExtension: 'pgcrypto',
         autoLoadEntities: true,
         synchronize: false,
