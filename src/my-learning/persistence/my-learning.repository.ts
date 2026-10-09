@@ -43,7 +43,7 @@ export class MyLearningRepository {
   ): Promise<PersonalLearningPath> {
     return this.dataSource.transaction(async (manager) => {
       const items = input.items ?? [];
-      await this.validateMaterials(manager, items);
+      await this.validateMaterials(manager, ownerUserId, items);
       const paths = manager.getRepository(PersonalLearningPath);
       const path = await paths.save(
         paths.create({
@@ -70,7 +70,7 @@ export class MyLearningRepository {
       });
       if (!path) return null;
       if (input.items !== undefined) {
-        await this.validateMaterials(manager, input.items);
+        await this.validateMaterials(manager, ownerUserId, input.items);
         await manager.getRepository(PersonalPathItem).delete({ pathId: id });
         path.items = await this.insertItems(manager, id, input.items);
       } else {
@@ -134,9 +134,25 @@ export class MyLearningRepository {
 
   private async validateMaterials(
     manager: EntityManager,
+    userId: string,
     items: PersonalPathItemDto[],
   ): Promise<void> {
     if (!items.length) return;
+
+    const materialIds = [...new Set(items.map((item) => item.materialId))];
+    const bookmarks = await manager.getRepository(Bookmark).find({
+      where: {
+        userId: userId,
+        materialId: In(materialIds),
+      },
+      select: {materialId: true},
+    });
+
+    if ( bookmarks.length !== materialIds.length ) {
+      throw new BadRequestException(
+        'Learning paths can only contain your bookmarked materials',
+      );
+    }
     const materials = await manager.getRepository(TrainingMaterial).find({
       where: { id: In(items.map((item) => item.materialId)) },
       select: { id: true },
