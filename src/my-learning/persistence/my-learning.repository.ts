@@ -1,5 +1,10 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { DataSource, EntityManager, In } from 'typeorm';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { DataSource, EntityManager, In, QueryFailedError } from 'typeorm';
 import { TrainingMaterial } from '../../database/entities/catalog.entity';
 import {
   PersonalLearningPath,
@@ -8,6 +13,7 @@ import {
 import { CreatePersonalLearningPathDto } from '../dto/create-personal-learning-path.dto';
 import { PersonalPathItemDto } from '../dto/personal-path-item.dto';
 import { UpdatePersonalLearningPathDto } from '../dto/update-personal-learning-path.dto';
+import { Bookmark } from '../../database/entities/bookmark.entity';
 
 @Injectable()
 export class MyLearningRepository {
@@ -85,6 +91,45 @@ export class MyLearningRepository {
       .getRepository(PersonalLearningPath)
       .delete({ id, ownerUserId });
     return result.affected === 1;
+  }
+
+  retrieveBookmarks(userId: string): Promise<Bookmark[]> {
+    return this.dataSource.getRepository(Bookmark).find({
+      where: { userId },
+      order: { createdAt: 'DESC', id: 'ASC' },
+    });
+  }
+
+  async addBookmark(userId: string, materialId: string): Promise<Bookmark> {
+    const material = await this.dataSource
+      .getRepository(TrainingMaterial)
+      .findOne({ where: { id: materialId }, select: { id: true } });
+    if (!material) {
+      throw new NotFoundException('Material not found');
+    }
+
+    const bookmark = new Bookmark();
+    bookmark.materialId = materialId;
+    bookmark.userId = userId;
+    try {
+      return await this.dataSource.getRepository(Bookmark).save(bookmark);
+    } catch (error: unknown) {
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { code?: string; constraint?: string }).code ===
+          '23505' &&
+        (error.driverError as { code?: string; constraint?: string })
+          .constraint === 'UQ_bookmarks_user_material'
+      ) {
+        throw new ConflictException('Material is already saved');
+      }
+      throw error;
+    }
+  }
+
+  async deleteBookmark(userId: string, materialId: string): Promise<void> {
+    const repository = this.dataSource.getRepository(Bookmark);
+    await repository.delete({ userId, materialId });
   }
 
   private async validateMaterials(

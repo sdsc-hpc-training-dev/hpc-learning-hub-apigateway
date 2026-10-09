@@ -8,10 +8,39 @@ import { CreatePersonalLearningPathDto } from './dto/create-personal-learning-pa
 import { UpdatePersonalLearningPathDto } from './dto/update-personal-learning-path.dto';
 import { PersonalLearningPathResponseDto } from './dto/personal-learning-path-response.dto';
 import { MyLearningRepository } from './persistence/my-learning.repository';
+import { AddBookmarkDto } from './dto/add-bookmark.dto';
+import { BookmarkResponseDto } from './dto/bookmark-response.dto';
+import { Bookmark } from '../database/entities/bookmark.entity';
 
 @Injectable()
 export class MyLearningService {
   constructor(private readonly repository: MyLearningRepository) {}
+
+  async findBookmarks(userId: string): Promise<BookmarkResponseDto[]> {
+    const bookmarks = await this.repository.retrieveBookmarks(userId);
+    return bookmarks.map((bookmark) => this.toBookmarkResponse(bookmark));
+  }
+
+  async addBookmark(
+    userId: string,
+    input: AddBookmarkDto,
+  ): Promise<BookmarkResponseDto> {
+    return this.toBookmarkResponse(
+      await this.repository.addBookmark(userId, input.materialId),
+    );
+  }
+
+  deleteBookmark(userId: string, materialId: string): Promise<void> {
+    return this.repository.deleteBookmark(userId, materialId);
+  }
+
+  private toBookmarkResponse(bookmark: Bookmark): BookmarkResponseDto {
+    return {
+      id: bookmark.id,
+      materialId: bookmark.materialId,
+      createdAt: bookmark.createdAt,
+    };
+  }
 
   async findAll(
     ownerUserId: string,
