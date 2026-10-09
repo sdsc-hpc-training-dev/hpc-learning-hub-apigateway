@@ -145,10 +145,10 @@ export class MyLearningRepository {
         userId: userId,
         materialId: In(materialIds),
       },
-      select: {materialId: true},
+      select: { materialId: true },
     });
 
-    if ( bookmarks.length !== materialIds.length ) {
+    if (bookmarks.length !== materialIds.length) {
       throw new BadRequestException(
         'Learning paths can only contain your bookmarked materials',
       );
