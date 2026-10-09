@@ -25,7 +25,7 @@ import {
 } from './persistence/training-library.records';
 
 const DEFAULT_PAGE = 1;
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 100;
 
 @Injectable()
@@ -44,6 +44,8 @@ export class TrainingLibraryService {
       pageSize: filters.pageSize,
       total: result.total,
       totalPages: Math.ceil(result.total / filters.pageSize),
+      sort: filters.sort ?? 'recommended',
+      rankingVersion: 'recommended-v1',
     };
   }
 
@@ -107,7 +109,8 @@ export class TrainingLibraryService {
 
   private toFilters(query: MaterialQueryDto): MaterialFilters {
     return {
-      search: this.optional(query.search),
+      search: this.optional(query.search)?.replace(/\s+/g, ' '),
+      searchMode: query.searchMode ?? 'websearch',
       topic: this.optional(query.topic),
       tool: this.optional(query.tool),
       system: this.optional(query.system),
@@ -115,6 +118,8 @@ export class TrainingLibraryService {
       eventEdition: this.optional(query.eventEdition),
       instructor: this.optional(query.instructor),
       resourceType: this.resourceType(query.resourceType),
+      date: this.optional(query.date),
+      sort: query.sort ?? 'recommended',
       page: this.positiveInteger(query.page, 'page', DEFAULT_PAGE),
       pageSize: this.positiveInteger(
         query.pageSize,

@@ -1,8 +1,31 @@
 import { Transform, Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsDateString,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 import { ResourceType } from '../../database/entities/persistence.enums';
 
 export class MaterialQueryDto {
+  @IsOptional()
+  @IsIn(['websearch', 'phrase'])
+  searchMode?: 'websearch' | 'phrase';
+
+  @IsOptional()
+  @IsIn(['recommended', 'title'])
+  sort?: 'recommended' | 'title';
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  date?: string;
+
   @IsOptional()
   @IsString()
   search?: string;
