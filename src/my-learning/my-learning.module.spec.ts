@@ -6,6 +6,7 @@ import { UserRole } from '../database/entities/user.entity';
 import { MyLearningController } from './my-learning.controller';
 import { MyLearningModule } from './my-learning.module';
 import { MyLearningService } from './my-learning.service';
+import { BookmarksController } from './bookmarks.controller';
 
 const updatedAt = new Date('2026-10-06T12:00:00Z');
 const path = {
@@ -47,6 +48,7 @@ describe('MyLearningModule', () => {
   it('registers the controller and service with Nest dependency injection', () => {
     expect(controller).toBeInstanceOf(MyLearningController);
     expect(module.get(MyLearningService)).toBeInstanceOf(MyLearningService);
+    expect(module.get(BookmarksController)).toBeInstanceOf(BookmarksController);
   });
 
   it('requires session authentication for the personal learning paths route', () => {
