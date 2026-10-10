@@ -11,6 +11,9 @@ export interface EventEditionResponseDto {
   endAt: string | null;
   format: string | null;
   location: string | null;
+  eventUrl: string | null;
+  registrationUrl: string | null;
+  isTimeDisplayed: boolean | null;
 }
 
 export interface EventSeriesResponseDto {

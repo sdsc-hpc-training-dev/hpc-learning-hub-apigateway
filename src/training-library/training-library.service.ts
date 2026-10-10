@@ -216,7 +216,18 @@ export class TrainingLibraryService {
       endAt: event.endAt?.toISOString() ?? null,
       format: event.format,
       location: event.location,
+      eventUrl: event.eventUrl,
+      registrationUrl: event.registrationUrl,
+      isTimeDisplayed: this.toBooleanFlag(event.isTimeDisplayed),
     };
+  }
+
+  private toBooleanFlag(value: string | null): boolean | null {
+    if (value === null) return null;
+    const normalized = value.trim().toLowerCase();
+    if (['yes', 'true', '1'].includes(normalized)) return true;
+    if (['no', 'false', '0'].includes(normalized)) return false;
+    return null;
   }
 
   private toEventSeries(series: EventSeries): EventSeriesResponseDto {

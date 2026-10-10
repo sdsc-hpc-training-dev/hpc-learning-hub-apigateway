@@ -60,6 +60,9 @@ const materialRecord = (): MaterialRecord => ({
       endAt: null,
       format: 'online',
       location: null,
+      eventUrl: 'https://www.sdsc.edu/events/workshop.html',
+      registrationUrl: 'https://registration.example/workshop',
+      isTimeDisplayed: 'yes',
     }),
   ],
   topics: [entity(Topic, { id: 'topic-z', name: 'Z topic' })],
@@ -230,7 +233,12 @@ describe('TrainingLibraryService material detail', () => {
     await expect(service.findMaterial('material-1')).resolves.toMatchObject({
       id: 'material-1',
       eventEditions: [
-        expect.objectContaining({ startAt: '2026-09-01T10:00:00.000Z' }),
+        expect.objectContaining({
+          startAt: '2026-09-01T10:00:00.000Z',
+          eventUrl: 'https://www.sdsc.edu/events/workshop.html',
+          registrationUrl: 'https://registration.example/workshop',
+          isTimeDisplayed: true,
+        }),
       ],
     });
   });

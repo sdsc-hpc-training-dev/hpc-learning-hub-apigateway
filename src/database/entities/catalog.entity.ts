@@ -69,6 +69,15 @@ export class EventEdition extends SnapshotCatalogEntity {
 
   @Column('text', { name: 'source_file', nullable: true })
   sourceFile!: string | null;
+
+  @Column('text', { name: 'event_url', nullable: true })
+  eventUrl!: string | null;
+
+  @Column('text', { name: 'registration_url', nullable: true })
+  registrationUrl!: string | null;
+
+  @Column('text', { name: 'is_time_displayed', nullable: true })
+  isTimeDisplayed!: string | null;
 }
 
 @Entity({ name: 'training_materials' })
