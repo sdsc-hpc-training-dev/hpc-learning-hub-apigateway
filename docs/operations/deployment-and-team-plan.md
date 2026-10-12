@@ -26,6 +26,43 @@ for each run. NRP is currently the backup bucket, not the execution host. AIDA
 evaluation is separate. The workflow retains evidence; database activation is
 Srujam's next integration task.
 
+The schedule is active on `main` through
+[pipeline PR 72](https://github.com/sdsc-hpc-training-dev/intvid-backend/pull/72),
+merged October 12. The October 12 canary produced
+`snapshot-v3-20261012T175431Z-5e4c572b49f8928f` and source bundle
+`source-bundle-v1-20261012T175223Z-429040d2679c`. Its Azure promotion audit passes
+all 13 gates; the audit checksum matches the published pointer. Canonical entity
+and relationship files and the stable-ID registry are byte-identical to the
+October 9 local candidate, so the local UI represents the latest collected
+catalog content even though its snapshot provenance ID is older. New version IDs
+do not necessarily mean new teaching material.
+
+Azure role fixes were limited to the existing workflow identity: Storage Blob
+Delegator on `staidanrppilot260730` and Storage Blob Data Contributor on its
+`snapshots` container. Generated SAS permissions omit delete, require HTTPS and
+expire after three hours. PostgreSQL permissions were not expanded.
+
+[Live canary run 38285940023](https://github.com/sdsc-hpc-training-dev/intvid-backend/actions/runs/38285940023)
+completed successfully. Raw data and the snapshot were published to both Azure and
+NRP, with remote digest metadata and size verification. The pipeline runtime was
+1,131.93 seconds (about 19 minutes); collection/enrichment took 710.88 seconds,
+and snapshot build/audit/publication took 421.05 seconds. No NRP backup error was
+reported. This proves the temporary runner plus NRP storage path; it is not a
+Kubernetes execution test or an application-database activation.
+
+The local review passed 115 frontend tests, targeted lint and the production
+Docker build. The production npm audit reports zero known vulnerabilities. A
+display scan of all 538 materials and their resource titles found no retained HTML
+fragments after the October 12 fixes. Visual tests covered desktop events, series
+navigation, material descriptions and mobile navigation/expanded-text wrapping;
+the browser console was clean. These checks do not replace the full Cypress,
+Playwright and Postman suites assigned to the team.
+
+Young should also pin the hosted runner image and update the official actions
+after testing: the canary warned of an `ubuntu-latest` migration beginning October
+19 and older actions being forced from Node 20 to Node 24. They passed today;
+retain these runner-maintenance tasks alongside the NRP migration.
+
 The review stack is at http://127.0.0.1:18082/ and its Gateway at
 http://127.0.0.1:18081/api/v1. Port 18080 was occupied by another project.
 VM inspection through the configured `learning-hub` SSH alias failed because the
