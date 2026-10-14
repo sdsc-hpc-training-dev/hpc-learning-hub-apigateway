@@ -3,8 +3,8 @@
 The target model uses CILogon OpenID Connect for sign-in and local application
 sessions and roles for authorization. Public catalog access remains unauthenticated.
 
-The entity model below is implemented and registered with TypeORM. Its migration
-and CILogon endpoints are still pending. The authentication flow and CILogon routes
+The entity model below is implemented and registered with TypeORM, and its
+CILogon migration is checked in. The CILogon endpoints are still pending. The authentication flow and CILogon routes
 below describe the intended next increment.
 
 ## Identity and persistence model
@@ -160,9 +160,9 @@ columns does not implement those checks. `select: false` limits accidental
 selection of the verifier but does not encrypt it or expire the record.
 
 No existing accounts need to be preserved for this development switch.
-Create a new migration to add both tables, alter `users`, and remove
-`auth_challenges` and `auth_challenge_purpose_enum`. Keep historical migrations
-intact. TypeORM synchronization remains disabled, so entity changes alone do not
+The CILogon migration adds both tables and alters `users`. The unused
+`auth_challenges` table and `auth_challenge_purpose_enum` still require a separate
+cleanup migration. Keep historical migrations intact. TypeORM synchronization remains disabled, so entity changes alone do not
 update PostgreSQL or the committed database snapshot.
 
 ## Authentication flow
@@ -233,10 +233,6 @@ session and role behavior after the switch.
 V1 content-authoring endpoint. First sign-in will create `LEARNER` accounts;
 clients and provider claims cannot assign a role. Bootstrap administrators need
 a controlled promotion process after CILogon sign-in.
-
-`POST /users`, `POST /auth/login`, and `POST /auth/verify-login` are being retired.
-Their controller code is still present but depends on the removed password and
-challenge model. They are not working alternatives to the planned CILogon flow.
 
 ## Endpoint payloads
 
@@ -356,7 +352,7 @@ role fields on learner-owned operations. Existing JSON API errors use `statusCod
 
 ## Local setup and verification
 
-Create and apply the new authentication migration before using the new schema.
+Apply the CILogon authentication migration before using the new schema.
 When restoring the committed catalog snapshot, restore it first and then apply
 any newer migrations. `migration:run` alone cannot create a migration that has
 not been checked in. See the [README database model](../README.md#authentication-database-model).
@@ -368,8 +364,9 @@ CILogon can omit email and name even when requested. Its
 [OIDC documentation](https://www.cilogon.org/oidc) describes registration,
 discovery, claims, and PKCE. The client integration and configuration are still pending.
 
-The bootstrap process should promote a known local user after their first
-CILogon sign-in, using a controlled administrative process.
+Set `ADMIN_USER_ID` to the UUID of a local user with a linked CILogon identity,
+then run `npm run seed:admin` to promote that account. The script does not create
+users or identify accounts by email.
 
 Entity metadata tests verify table registration, nullable profile fields,
 identity uniqueness and cascade behavior, login-transaction fields and indices,

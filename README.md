@@ -57,7 +57,7 @@ Migrations are not applied automatically when NestJS starts. Run
 ### Authentication database model
 
 Authentication uses a CILogon identity model with local application sessions
-and roles. The TypeORM entities are registered; the matching migration and
+and roles. The TypeORM entities are registered and the CILogon migration is available.
 CILogon login endpoints are still pending.
 
 | Table                     | Purpose and constraints                                                                                                                                                                                                                                        |
@@ -74,10 +74,10 @@ The PKCE verifier is excluded from default TypeORM selects; the callback lookup
 must explicitly select it. Expiry checks, single-use consumption, browser
 binding, and cleanup still need to be implemented in the login service.
 
-A new migration must create the identity and login-transaction tables, update
-`users`. Keep historical migrations intact. Running `migration:run` applies only checked-in migrations;
-it does not generate the CILogon schema from the entities. A restored snapshot
-also needs that migration applied to match the entity model.
+The CILogon migration creates the identity and login-transaction tables and
+updates `users`. Keep historical migrations intact. Running `migration:run` applies only checked-in migrations;
+it does not generate schema changes from the entities. Apply the CILogon
+migration after restoring a snapshot that predates it.
 See the [authentication design](docs/local-authentication-and-authorization-design.md)
 for entity fields, relationships, and the planned sign-in flow.
 
@@ -152,9 +152,10 @@ replacement snapshot.
 
 ### Seed an administrator
 
-The planned bootstrap process promotes a known local user after their first
-successful CILogon sign-in. It must not elevate an account based only on an
-email or provider role claim.
+After a user has signed in with CILogon, set `ADMIN_USER_ID` in `.env` to their
+local user UUID and run `npm run seed:admin`. The script requires a linked
+`AuthIdentity` and promotes that account to `ADMIN`. It does not create an
+account or match users by email or provider role claims.
 
 ### 5. Start NestJS
 
