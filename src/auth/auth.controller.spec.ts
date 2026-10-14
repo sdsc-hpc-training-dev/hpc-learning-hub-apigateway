@@ -4,6 +4,10 @@ import type { AuthenticatedRequest } from './decorators/current-user.decorator';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { sessionCookieClearOptions, sessionCookieName } from './session-cookie';
+import {
+  oidcLoginCookieName,
+  oidcLoginCookieOptions,
+} from './oidc-login-cookie';
 
 function setup() {
   const logoutUser = jest.fn().mockResolvedValue(undefined);
@@ -59,4 +63,86 @@ it('rejects logout without an authenticated session', async () => {
   ).rejects.toBeInstanceOf(UnauthorizedException);
   expect(logoutUser).not.toHaveBeenCalled();
   expect(clearCookie).not.toHaveBeenCalled();
+});
+
+function loginSetup() {
+  const result = {
+    authorizationUrl: 'https://cilogon.org/authorize?state=random-state',
+    browserBinding: 'browser-binding',
+    expiresAt: new Date('2026-10-14T12:10:00Z'),
+  };
+  const startCilogonLogin = jest.fn().mockResolvedValue(result);
+  const cookie = jest.fn();
+  const redirect = jest.fn();
+  const json = jest.fn();
+  const controller = new AuthController({
+    startCilogonLogin,
+  } as unknown as AuthService);
+  const response = { cookie, redirect, json } as unknown as Response;
+  return {
+    controller,
+    startCilogonLogin,
+    cookie,
+    redirect,
+    json,
+    response,
+    result,
+  };
+}
+
+it.each(['development', 'production'])(
+  'sets only the temporary cookie and redirects to CILogon in %s',
+  async (environment) => {
+    const original = process.env.NODE_ENV;
+    process.env.NODE_ENV = environment;
+    try {
+      const { controller, response, result, cookie, redirect, json } =
+        loginSetup();
+      await expect(
+        controller.startCilogonLogin(response),
+      ).resolves.toBeUndefined();
+      expect(cookie).toHaveBeenCalledTimes(1);
+      expect(cookie).toHaveBeenCalledWith(
+        oidcLoginCookieName(),
+        result.browserBinding,
+        oidcLoginCookieOptions(result.expiresAt),
+      );
+      expect(redirect).toHaveBeenCalledWith(302, result.authorizationUrl);
+      expect(cookie.mock.invocationCallOrder[0]).toBeLessThan(
+        redirect.mock.invocationCallOrder[0]!,
+      );
+      expect(json).not.toHaveBeenCalled();
+    } finally {
+      if (original === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = original;
+    }
+  },
+);
+
+it('does not set a cookie or redirect when login initiation fails', async () => {
+  const { controller, startCilogonLogin, cookie, redirect, response } =
+    loginSetup();
+  const error = new Error('Could not persist login attempt');
+  startCilogonLogin.mockRejectedValue(error);
+  await expect(controller.startCilogonLogin(response)).rejects.toBe(error);
+  expect(cookie).not.toHaveBeenCalled();
+  expect(redirect).not.toHaveBeenCalled();
+});
+
+it('waits for login preparation before sending cookies or a redirect', async () => {
+  const { controller, startCilogonLogin, cookie, redirect, response, result } =
+    loginSetup();
+  let finish!: (value: typeof result) => void;
+  startCilogonLogin.mockReturnValue(
+    new Promise<typeof result>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const pending = controller.startCilogonLogin(response);
+  await Promise.resolve();
+  expect(cookie).not.toHaveBeenCalled();
+  expect(redirect).not.toHaveBeenCalled();
+  finish(result);
+  await pending;
+  expect(redirect).toHaveBeenCalledTimes(1);
 });

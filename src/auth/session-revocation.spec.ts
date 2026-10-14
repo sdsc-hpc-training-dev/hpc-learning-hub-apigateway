@@ -1,5 +1,6 @@
 import { DataSource } from 'typeorm';
 import { AuthService } from './auth.service';
+import { CilogonClientService } from './cilogon.service';
 import { AuthenticationRepository } from './persistence/auth.repository';
 
 it('does not finish revocation until the database update completes', async () => {
@@ -24,8 +25,9 @@ it('does not finish revocation until the database update completes', async () =>
 it('propagates revocation failure instead of completing logout successfully', async () => {
   const error = new Error('Database unavailable');
   const revokeSession = jest.fn().mockRejectedValue(error);
-  const service = new AuthService({
-    revokeSession,
-  } as unknown as AuthenticationRepository);
+  const service = new AuthService(
+    { revokeSession } as unknown as AuthenticationRepository,
+    {} as CilogonClientService,
+  );
   await expect(service.logoutUser('session-id')).rejects.toBe(error);
 });

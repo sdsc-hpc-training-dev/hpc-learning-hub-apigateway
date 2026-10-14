@@ -40,6 +40,16 @@ it('removes both password login routes while preserving guarded logout with 204'
   });
 });
 
+it('allows guests to start CILogon login through the public GET route', () => {
+  expect(routes(AuthController)).toContainEqual({
+    method: RequestMethod.GET,
+    path: 'cilogon/login',
+    guards: undefined,
+    status: undefined,
+  });
+  expect(Reflect.getMetadata(GUARDS_METADATA, AuthController)).toBeUndefined();
+});
+
 it('removes public registration while keeping account reads and role updates', () => {
   const handlers = routes(UsersController);
   expect(
