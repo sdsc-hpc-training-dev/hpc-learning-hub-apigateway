@@ -4,7 +4,6 @@ import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join, resolve } from 'path';
 import { In } from 'typeorm';
-import { PasswordService } from '../../auth/password.service';
 import { sessionCookieName } from '../../auth/session-cookie';
 import dataSource from '../data-source';
 import { AuthSession } from '../entities/auth-session.entity';
@@ -35,16 +34,12 @@ async function createFixtures(
   const [owner, other, admin] = sessions;
   if (!owner || !other || !admin)
     throw new Error('Three test users are required');
-  const passwordHash = await new PasswordService().hash(
-    randomBytes(32).toString('base64url'),
-  );
   await dataSource.transaction(async (manager) => {
     for (const { id, token } of sessions) {
       await manager.getRepository(User).insert({
         id,
         email: `postman-${id}@example.invalid`,
         username: `postman_${id.replaceAll('-', '')}`,
-        passwordHash,
         role: id === admin.id ? UserRole.ADMIN : UserRole.LEARNER,
       });
       await manager.getRepository(AuthSession).insert({
