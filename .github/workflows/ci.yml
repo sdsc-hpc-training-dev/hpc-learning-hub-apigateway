@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - master
       - dev
 
 permissions:
@@ -209,6 +210,7 @@ jobs:
 
       - name: Start API and run Newman tests with temporary user sessions
         env:
+          ENABLE_PRIVATE_FEATURES: 'true'
           DB_HOST: localhost
           DB_PORT: 5432
           DB_USERNAME: learning_hub

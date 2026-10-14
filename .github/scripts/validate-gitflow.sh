@@ -6,10 +6,10 @@ head_branch=${1:?A pull request head branch is required}
 base_branch=${2:?A pull request base branch is required}
 
 feature_pattern='^feature/[a-z0-9][a-z0-9._-]*$'
-release_pattern='^RELEASE-[0-9]+\.[0-9]+\.[0-9]+$'
+release_pattern='^(release/v?[0-9]+\.[0-9]+\.[0-9]+|RELEASE-[0-9]+\.[0-9]+\.[0-9]+)$'
 hotfix_pattern='^hotfix/[a-z0-9][a-z0-9._-]*$'
 
-main_pattern='main'
+main_pattern='master'
 
 is_feature() {
   [[ $1 =~ $feature_pattern ]]
@@ -24,27 +24,27 @@ is_hotfix() {
 }
 
 is_main() {
-  [[ $1 == $main_pattern ]]
+  [[ $1 == $main_pattern || $1 == main ]]
 }
 
 valid=false
 expected=''
 
 case "$base_branch" in
-  main)
-    expected='RELEASE-X.Y.Z or hotfix/<slug>'
+  master|main)
+    expected='release/vX.Y.Z or hotfix/<slug>'
     if is_release "$head_branch" || is_hotfix "$head_branch"; then
       valid=true
     fi
     ;;
   dev)
-    expected='feature/<slug>, RELEASE-X.Y.Z, main, or hotfix/<slug>'
+    expected='feature/<slug>, release/vX.Y.Z, master, or hotfix/<slug>'
     if is_feature "$head_branch" || is_release "$head_branch" || is_hotfix "$head_branch" || is_main "$head_branch"; then
       valid=true
     fi
     ;;
-  RELEASE-*)
-    expected='feature/<slug> targeting a valid RELEASE-X.Y.Z branch'
+  release/*|RELEASE-*)
+    expected='feature/<slug> targeting a valid release/vX.Y.Z branch'
     if is_release "$base_branch" && is_feature "$head_branch"; then
       valid=true
     fi
@@ -56,7 +56,7 @@ case "$base_branch" in
     fi
     ;;
   *)
-    expected='a pull request targeting main, dev, RELEASE-X.Y.Z, or hotfix/<slug>'
+    expected='a pull request targeting master, dev, release/vX.Y.Z, or hotfix/<slug>'
     ;;
 esac
 

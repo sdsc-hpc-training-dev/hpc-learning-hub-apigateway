@@ -1,10 +1,10 @@
 {
-  "name": "GitFlow: main",
+  "name": "GitFlow: master",
   "target": "branch",
   "enforcement": "active",
   "conditions": {
     "ref_name": {
-      "include": ["refs/heads/main"],
+      "include": ["refs/heads/master"],
       "exclude": []
     }
   },

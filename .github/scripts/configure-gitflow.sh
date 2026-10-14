@@ -21,18 +21,18 @@ if [[ $create_dev == true ]]; then
     "repos/${repository}/git/ref/heads/dev" >/dev/null 2>&1; then
     echo 'dev already exists.'
   else
-    main_sha=$(gh api \
+    master_sha=$(gh api \
       --header "X-GitHub-Api-Version: ${api_version}" \
-      "repos/${repository}/git/ref/heads/main" \
+      "repos/${repository}/git/ref/heads/master" \
       --jq '.object.sha')
 
-    jq -n --arg sha "$main_sha" '{ref: "refs/heads/dev", sha: $sha}' | \
+    jq -n --arg sha "$master_sha" '{ref: "refs/heads/dev", sha: $sha}' | \
       gh api \
         --method POST \
         --header "X-GitHub-Api-Version: ${api_version}" \
         "repos/${repository}/git/refs" \
         --input - >/dev/null
-    echo "Created dev from main at ${main_sha}."
+    echo "Created dev from master at ${master_sha}."
   fi
 fi
 

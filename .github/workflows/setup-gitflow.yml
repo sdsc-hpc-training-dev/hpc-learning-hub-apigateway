@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       create_dev_branch:
-        description: Create dev from main when dev does not exist
+        description: Create dev from master when dev does not exist
         required: true
         default: true
         type: boolean
