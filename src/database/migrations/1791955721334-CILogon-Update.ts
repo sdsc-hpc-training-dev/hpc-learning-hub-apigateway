@@ -1,10 +1,10 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CILogonUpdate1791955721334 implements MigrationInterface {
-    name = 'CILogonUpdate1791955721334'
+  name = 'CILogonUpdate1791955721334';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             CREATE TABLE "auth_identities" (
                 "id" uuid NOT NULL DEFAULT gen_random_uuid(),
                 "user_id" uuid NOT NULL,
@@ -18,7 +18,7 @@ export class CILogonUpdate1791955721334 implements MigrationInterface {
                 CONSTRAINT "PK_63a29aebcddd09448dbeee4666b" PRIMARY KEY ("id")
             )
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             CREATE TABLE "oidc_login_transactions" (
                 "id" uuid NOT NULL DEFAULT gen_random_uuid(),
                 "state_hash" text NOT NULL,
@@ -33,58 +33,57 @@ export class CILogonUpdate1791955721334 implements MigrationInterface {
                 CONSTRAINT "PK_2c473d63012fcff8880ec47f2e4" PRIMARY KEY ("id")
             )
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             CREATE INDEX "IDX_oidc_login_transactions_expires" ON "oidc_login_transactions" ("expires_at")
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             ALTER TABLE "users" DROP COLUMN "password_hash"
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             ALTER TABLE "users"
             ADD "display_name" text
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             ALTER TABLE "users"
             ADD "last_login_at" TIMESTAMP WITH TIME ZONE
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             ALTER TABLE "users"
             ALTER COLUMN "email" DROP NOT NULL
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             ALTER TABLE "auth_identities"
             ADD CONSTRAINT "FK_c06a980d83c42611d27a294e55c" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             ALTER TABLE "auth_identities" DROP CONSTRAINT "FK_c06a980d83c42611d27a294e55c"
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             ALTER TABLE "users"
             ALTER COLUMN "email"
             SET NOT NULL
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             ALTER TABLE "users" DROP COLUMN "last_login_at"
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             ALTER TABLE "users" DROP COLUMN "display_name"
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             ALTER TABLE "users"
             ADD "password_hash" text NOT NULL
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             DROP INDEX "public"."IDX_oidc_login_transactions_expires"
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             DROP TABLE "oidc_login_transactions"
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             DROP TABLE "auth_identities"
         `);
-    }
-
+  }
 }

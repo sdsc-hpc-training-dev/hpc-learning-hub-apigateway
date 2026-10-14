@@ -52,6 +52,7 @@
     "class-validator": "^0.15.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "openid-client": "^6.8.8",
     "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
@@ -93,8 +94,18 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "allowJs": true
+          }
+        }
+      ]
     },
+    "transformIgnorePatterns": [
+      "node_modules/(?!@nestjs/config/)"
+    ],
     "collectCoverageFrom": [
       "**/*.ts",
       "!**/*.spec.ts",
