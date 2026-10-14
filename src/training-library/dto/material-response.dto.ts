@@ -11,6 +11,9 @@ export interface EventEditionResponseDto {
   endAt: string | null;
   format: string | null;
   location: string | null;
+  eventUrl: string | null;
+  registrationUrl: string | null;
+  isTimeDisplayed: boolean | null;
 }
 
 export interface EventSeriesResponseDto {
@@ -39,6 +42,8 @@ export interface MaterialResponseDto {
 }
 
 export interface MaterialPageResponseDto {
+  sort: 'recommended' | 'title';
+  rankingVersion: 'recommended-v1';
   items: MaterialResponseDto[];
   page: number;
   pageSize: number;

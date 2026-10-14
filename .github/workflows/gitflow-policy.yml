@@ -26,3 +26,6 @@ jobs:
           HEAD_BRANCH: ${{ github.head_ref }}
           BASE_BRANCH: ${{ github.base_ref }}
         run: .github/scripts/validate-gitflow.sh "$HEAD_BRANCH" "$BASE_BRANCH"
+
+      - name: Test accepted and rejected Gitflow routes
+        run: bash .github/scripts/validate-gitflow.test.sh
