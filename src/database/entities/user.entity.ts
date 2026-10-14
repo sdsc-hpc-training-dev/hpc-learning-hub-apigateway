@@ -3,11 +3,12 @@ import {
   CreateDateColumn,
   Entity,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
-import { AuthChallenge } from './auth-challenge.entity';
+import { AuthIdentity } from './auth-identity.entity';
 import { AuthSession } from './auth-session.entity';
 import { PersonalLearningPath } from './personal-learning-path.entity';
 import { Bookmark } from './bookmark.entity';
@@ -25,14 +26,17 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column('text')
-  email!: string;
+  @Column('text', { nullable: true })
+  email!: string | null;
 
   @Column('text')
   username!: string;
 
-  @Column('text', { name: 'password_hash' })
-  passwordHash!: string;
+  @Column('text', { name: 'display_name', nullable: true })
+  displayName!: string | null;
+
+  @Column('timestamptz', { name: 'last_login_at', nullable: true })
+  lastLoginAt!: Date | null;
 
   @Column('enum', {
     enum: UserRole,
@@ -50,8 +54,8 @@ export class User {
   @OneToMany(() => AuthSession, (session) => session.user)
   sessions!: AuthSession[];
 
-  @OneToMany(() => AuthChallenge, (challenge) => challenge.user)
-  challenges!: AuthChallenge[];
+  @OneToOne(() => AuthIdentity, (identity) => identity.user)
+  authIdentity!: AuthIdentity | null;
 
   @OneToMany(() => PersonalLearningPath, (path) => path.owner)
   personalLearningPaths!: PersonalLearningPath[];

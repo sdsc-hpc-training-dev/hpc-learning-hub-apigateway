@@ -33,7 +33,8 @@ import {
 } from './curated-learning-path.entity';
 import { SnapshotImportError } from './snapshot-import-error.entity';
 import { SnapshotImportRun } from './snapshot-import-run.entity';
-import { AuthChallenge } from './auth-challenge.entity';
+import { AuthIdentity } from './auth-identity.entity';
+import { OidcLoginTransaction } from './oidc-login-transaction.entity';
 import { AuthSession } from './auth-session.entity';
 import {
   PersonalLearningPath,
@@ -45,7 +46,8 @@ import { Bookmark } from './bookmark.entity';
 export const persistenceEntities = [
   User,
   AuthSession,
-  AuthChallenge,
+  AuthIdentity,
+  OidcLoginTransaction,
   PersonalLearningPath,
   PersonalPathItem,
   Bookmark,
