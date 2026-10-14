@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { AuthSession } from '../../database/entities/auth-session.entity';
-
+import { OidcLoginTransaction } from '../../database/entities/oidc-login-transaction.entity';
 @Injectable()
 export class AuthenticationRepository {
   constructor(private readonly dataSource: DataSource) {}
@@ -43,5 +43,49 @@ export class AuthenticationRepository {
     await this.dataSource
       .getRepository(AuthSession)
       .update({ id: sessionId }, { revokedAt: new Date() });
+  }
+
+  createLoginTransaction(
+    input: Pick<
+      OidcLoginTransaction,
+      | 'stateHash'
+      | 'nonce'
+      | 'pkceVerifier'
+      | 'browserBindingHash'
+      | 'returnTo'
+      | 'expiresAt'
+    >,
+  ): Promise<OidcLoginTransaction> {
+    const repository = this.dataSource.getRepository(OidcLoginTransaction);
+    return repository.save(repository.create({ ...input, consumedAt: null }));
+  }
+
+  consumeLoginTransaction(
+    stateHash: string,
+    browserBindingHash: string,
+  ): Promise<OidcLoginTransaction | null> {
+    return this.dataSource.transaction(async (manager) => {
+      const repository = manager.getRepository(OidcLoginTransaction);
+
+      const attempt = await repository
+        .createQueryBuilder('attempt')
+        .addSelect('attempt.pkceVerifier')
+        .where('attempt.stateHash = :stateHash', { stateHash })
+        .andWhere('attempt.browserBindingHash = :browserBindingHash', {
+          browserBindingHash,
+        })
+        .andWhere('attempt.consumedAt IS NULL')
+        .andWhere('attempt.expiresAt > now()')
+        .setLock('pessimistic_write')
+        .getOne();
+
+      if (!attempt) return null;
+
+      const consumedAt = new Date();
+      await repository.update(attempt.id, { consumedAt });
+      attempt.consumedAt = consumedAt;
+
+      return attempt;
+    });
   }
 }

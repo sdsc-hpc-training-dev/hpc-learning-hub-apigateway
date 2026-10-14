@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -13,10 +14,25 @@ import { AuthService } from './auth.service';
 import { sessionCookieClearOptions, sessionCookieName } from './session-cookie';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 import type { AuthenticatedRequest } from './decorators/current-user.decorator';
+import {
+  oidcLoginCookieName,
+  oidcLoginCookieOptions,
+} from './oidc-login-cookie';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Get('cilogon/login')
+  async startCilogonLogin(@Res() response: Response): Promise<void> {
+    const result = await this.authService.startCilogonLogin();
+    response.cookie(
+      oidcLoginCookieName(),
+      result.browserBinding,
+      oidcLoginCookieOptions(result.expiresAt),
+    );
+    response.redirect(HttpStatus.FOUND, result.authorizationUrl);
+  }
 
   @Post('logout')
   @UseGuards(SessionAuthGuard)
