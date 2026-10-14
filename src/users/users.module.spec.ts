@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UsersController } from './users.controller';
 import { UsersModule } from './users.module';
 import { AuthenticationRepository } from '../auth/persistence/auth.repository';
-import { PasswordService } from '../auth/password.service';
 import { UsersRepository } from './persistence/user.repository';
 import { UsersService } from './users.service';
 
@@ -16,8 +15,6 @@ describe('UsersModule', () => {
     })
       .overrideProvider(AuthenticationRepository)
       .useValue({})
-      .overrideProvider(PasswordService)
-      .useValue({ hash: jest.fn() })
       .overrideProvider(UsersRepository)
       .useValue({})
       .compile();

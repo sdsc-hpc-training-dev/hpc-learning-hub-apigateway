@@ -42,24 +42,6 @@ export class UsersRepository {
     });
   }
 
-  findByEmailOrUsername(email: string, username: string): Promise<User | null> {
-    return this.users
-      .createQueryBuilder('user')
-      .where('user.email = :email', { email })
-      .orWhere('user.username = :username', { username })
-      .getOne();
-  }
-
-  createUser(input: {
-    email: string;
-    username: string;
-    passwordHash: string;
-  }): Promise<User> {
-    return this.users.save(
-      this.users.create({ ...input, role: UserRole.LEARNER }),
-    );
-  }
-
   updateRole(
     adminUserId: string,
     userId: string,

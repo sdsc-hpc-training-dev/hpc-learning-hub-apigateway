@@ -16,7 +16,7 @@ const path = {
   description: null,
   createdAt: updatedAt,
   updatedAt,
-  owner: { passwordHash: 'private' },
+  owner: { authIdentity: { subject: 'private' } },
   items: [
     { pathId: 'path-id', materialId: 'material-b', position: 1 },
     { pathId: 'path-id', materialId: 'material-a', position: 0 },

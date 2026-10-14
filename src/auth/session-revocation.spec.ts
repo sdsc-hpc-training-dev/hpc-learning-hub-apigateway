@@ -1,6 +1,5 @@
 import { DataSource } from 'typeorm';
 import { AuthService } from './auth.service';
-import { PasswordService } from './password.service';
 import { AuthenticationRepository } from './persistence/auth.repository';
 
 it('does not finish revocation until the database update completes', async () => {
@@ -25,10 +24,8 @@ it('does not finish revocation until the database update completes', async () =>
 it('propagates revocation failure instead of completing logout successfully', async () => {
   const error = new Error('Database unavailable');
   const revokeSession = jest.fn().mockRejectedValue(error);
-  const service = new AuthService(
-    { revokeSession } as unknown as AuthenticationRepository,
-    {} as PasswordService,
-    { sendLoginCode: jest.fn() },
-  );
+  const service = new AuthService({
+    revokeSession,
+  } as unknown as AuthenticationRepository);
   await expect(service.logoutUser('session-id')).rejects.toBe(error);
 });

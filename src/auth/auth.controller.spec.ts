@@ -1,109 +1,62 @@
-import { LoginDto } from './dto/login.dto';
+import { UnauthorizedException } from '@nestjs/common';
+import type { Response } from 'express';
+import type { AuthenticatedRequest } from './decorators/current-user.decorator';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import type { Request, Response } from 'express';
-import { UnauthorizedException } from '@nestjs/common';
+import { sessionCookieClearOptions, sessionCookieName } from './session-cookie';
 
-describe('AuthController', () => {
-  const loginUser = jest.fn();
-  const verifyLogin = jest.fn();
+function setup() {
+  const logoutUser = jest.fn().mockResolvedValue(undefined);
+  const clearCookie = jest.fn();
   const controller = new AuthController({
-    loginUser,
-    verifyLogin,
+    logoutUser,
   } as unknown as AuthService);
+  const request = { sessionId: 'session-id' } as AuthenticatedRequest;
+  const response = { clearCookie } as unknown as Response;
+  return { controller, logoutUser, clearCookie, request, response };
+}
 
-  beforeEach(() => jest.clearAllMocks());
-
-  it('passes login input to the service', async () => {
-    const input: LoginDto = {
-      emailOrUsername: 'learner@example.com',
-      password: 'a-long-enough-password',
-    };
-    const output = { challengeId: 'challenge-id', expiresAt: new Date() };
-    loginUser.mockResolvedValue(output);
-
-    await expect(controller.loginUser(input)).resolves.toEqual(output);
-    expect(loginUser).toHaveBeenCalledWith(input);
-  });
-
-  it('sets a cookie with the exact expiration supplied by the service', async () => {
-    const expiresAt = new Date('2026-10-07T12:00:00Z');
-    verifyLogin.mockResolvedValue({ token: 'raw-token', expiresAt });
-    const input = { challengeId: 'challenge-id', code: '123456' };
-    const get = jest.fn().mockReturnValue('test-browser');
-    const cookie = jest.fn();
-    await controller.verifyLogin(
-      input,
-      { ip: '127.0.0.1', get } as unknown as Request,
-      { cookie } as unknown as Response,
-    );
-    expect(verifyLogin).toHaveBeenCalledWith(
-      input,
-      '127.0.0.1',
-      'test-browser',
-    );
-    expect(cookie).toHaveBeenCalledWith('session', 'raw-token', {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
-      path: '/',
-      expires: expiresAt,
-    });
-  });
-});
-
-it('leaves the cookie unset when verification fails', async () => {
-  const error = new UnauthorizedException(
-    'Invalid or expired verification code',
-  );
-  const verifyLogin = jest.fn().mockRejectedValue(error);
-  const controller = new AuthController({
-    verifyLogin,
-  } as unknown as AuthService);
-  const cookie = jest.fn();
+it('revokes the authenticated session and clears its cookie without a response body', async () => {
+  const { controller, logoutUser, clearCookie, request, response } = setup();
   await expect(
-    controller.verifyLogin(
-      { challengeId: 'challenge-id', code: '123456' },
-      { get: jest.fn() } as unknown as Request,
-      { cookie } as unknown as Response,
-    ),
-  ).rejects.toBe(error);
-  expect(verifyLogin).toHaveBeenCalledWith(
-    { challengeId: 'challenge-id', code: '123456' },
-    null,
-    null,
+    controller.logoutUser(request, response),
+  ).resolves.toBeUndefined();
+  expect(logoutUser).toHaveBeenCalledWith('session-id');
+  expect(clearCookie).toHaveBeenCalledWith(
+    sessionCookieName(),
+    sessionCookieClearOptions(),
   );
-  expect(cookie).not.toHaveBeenCalled();
 });
 
-it('sets a Secure host-only session cookie in production without returning the token', async () => {
-  const original = process.env.NODE_ENV;
-  process.env.NODE_ENV = 'production';
-  try {
-    const expiresAt = new Date('2026-10-07T12:00:00Z');
-    const verifyLogin = jest
-      .fn()
-      .mockResolvedValue({ token: 'raw-token', expiresAt });
-    const controller = new AuthController({
-      verifyLogin,
-    } as unknown as AuthService);
-    const cookie = jest.fn();
-    await expect(
-      controller.verifyLogin(
-        { challengeId: 'challenge-id', code: '123456' },
-        { get: jest.fn() } as unknown as Request,
-        { cookie } as unknown as Response,
-      ),
-    ).resolves.toBeUndefined();
-    expect(cookie).toHaveBeenCalledWith('__Host-session', 'raw-token', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      path: '/',
-      expires: expiresAt,
-    });
-  } finally {
-    if (original === undefined) delete process.env.NODE_ENV;
-    else process.env.NODE_ENV = original;
-  }
+it('waits for revocation before clearing the cookie', async () => {
+  const { controller, logoutUser, clearCookie, request, response } = setup();
+  let resolveRevocation!: () => void;
+  logoutUser.mockReturnValue(
+    new Promise<void>((resolve) => {
+      resolveRevocation = resolve;
+    }),
+  );
+  const pending = controller.logoutUser(request, response);
+  await Promise.resolve();
+  expect(clearCookie).not.toHaveBeenCalled();
+  resolveRevocation();
+  await pending;
+  expect(clearCookie).toHaveBeenCalledTimes(1);
+});
+
+it('does not clear the cookie when revocation fails', async () => {
+  const { controller, logoutUser, clearCookie, request, response } = setup();
+  const error = new Error('Database unavailable');
+  logoutUser.mockRejectedValue(error);
+  await expect(controller.logoutUser(request, response)).rejects.toBe(error);
+  expect(clearCookie).not.toHaveBeenCalled();
+});
+
+it('rejects logout without an authenticated session', async () => {
+  const { controller, logoutUser, clearCookie, response } = setup();
+  await expect(
+    controller.logoutUser({} as AuthenticatedRequest, response),
+  ).rejects.toBeInstanceOf(UnauthorizedException);
+  expect(logoutUser).not.toHaveBeenCalled();
+  expect(clearCookie).not.toHaveBeenCalled();
 });
