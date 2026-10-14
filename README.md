@@ -54,6 +54,33 @@ Applied migrations are marked with `[X]` by `migration:show`.
 Migrations are not applied automatically when NestJS starts. Run
 `npm run migration:run` whenever you pull a new migration.
 
+### Authentication database model
+
+Authentication uses a CILogon identity model with local application sessions
+and roles. The TypeORM entities are registered; the matching migration and
+CILogon login endpoints are still pending.
+
+| Table                     | Purpose and constraints                                                                                                                                                                                                                                        |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`                   | Local UUID, required unique username, nullable unique email, nullable `display_name` and `last_login_at`, one role defaulting to `LEARNER`, and managed timestamps.                                                                                            |
+| `auth_identities`         | CILogon identity linked to a user. Unique `(issuer, subject)` identifies the external account; unique `user_id` permits one identity per user. Optional `identity_provider` and `institution` hold profile metadata. Deleting a user cascades to its identity. |
+| `oidc_login_transactions` | Temporary sign-in state: unique `state_hash`, `nonce`, `pkce_verifier`, `browser_binding_hash`, nullable `return_to` and `consumed_at`, expiry, and creation time. Expiry is indexed; no user foreign key is required before sign-in.                          |
+| `auth_sessions`           | Existing local application sessions, with hashed tokens, expiry, and revocation. Deleting a user cascades to its sessions.                                                                                                                                     |
+
+Email and username are profile fields; CILogon authentication will look up the
+validated issuer and subject. Roles remain local and are not assigned from
+provider claims. Bookmarks and personal paths continue referencing `users.id`.
+The PKCE verifier is excluded from default TypeORM selects; the callback lookup
+must explicitly select it. Expiry checks, single-use consumption, browser
+binding, and cleanup still need to be implemented in the login service.
+
+A new migration must create the identity and login-transaction tables, update
+`users`. Keep historical migrations intact. Running `migration:run` applies only checked-in migrations;
+it does not generate the CILogon schema from the entities. A restored snapshot
+also needs that migration applied to match the entity model.
+See the [authentication design](docs/local-authentication-and-authorization-design.md)
+for entity fields, relationships, and the planned sign-in flow.
+
 ### Restore the committed database snapshot
 
 The repository includes a populated PostgreSQL snapshot at
@@ -123,53 +150,13 @@ docker compose exec -T postgres sh -c \
 Run the `pg_restore --list` validation command above before committing the
 replacement snapshot.
 
-### 5. Start Mailpit for local email testing
-
-The login endpoint sends verification codes over SMTP. Mailpit captures these
-messages so you can test login without delivering email to a real inbox.
-The current Compose file contains only PostgreSQL; start Mailpit separately:
-
-```bash
-docker run -d \
-  --name learning-hub-mailpit \
-  -p 127.0.0.1:1025:1025 \
-  -p 127.0.0.1:8025:8025 \
-  axllent/mailpit
-```
-
-Open [the Mailpit inbox](http://localhost:8025) to read the login codes. SMTP
-listens on port `1025`, matching the API's defaults. These ports follow the
-[Mailpit Docker documentation](https://mailpit.axllent.org/docs/install/docker/).
-If the named container already exists, use `docker start learning-hub-mailpit`.
-
-You can set the email settings explicitly in `.env`:
-
-```dotenv
-SMTP_HOST=localhost
-SMTP_PORT=1025
-AUTH_EMAIL_FROM=HPC Learning Hub <auth@example.org>
-```
-
-Restart NestJS after changing `.env`. The current email service uses SMTP;
-`RESEND_API_KEY` is not read. These settings are for the API running on your host.
-Mailpit captures messages locally; it does not forward them to recipients.
-
 ### Seed an administrator
 
-After applying migrations, set `ADMIN_EMAIL`, `ADMIN_USERNAME`, and `ADMIN_PASS`
-in `.env`. The password must contain 15–128 characters; replace the short
-example password before running the seed.
+The planned bootstrap process promotes a known local user after their first
+successful CILogon sign-in. It must not elevate an account based only on an
+email or provider role claim.
 
-```bash
-npx ts-node src/database/seed/seed-admin-account.ts
-```
-
-The script normalizes the email and username, hashes the password with scrypt,
-and creates or updates the account by email. Rerunning it resets that account's
-password and assigns `ADMIN`. Run the script directly: the current `seed:admin`
-npm command points to the curated learning path seed.
-
-### 6. Start NestJS
+### 5. Start NestJS
 
 ```bash
 npm run start:dev
@@ -216,26 +203,24 @@ parameters. Relationship filters use canonical IDs.
 
 ### Authentication and users
 
-| Endpoint                           | Access        | Description                                                |
-| ---------------------------------- | ------------- | ---------------------------------------------------------- |
-| `POST /api/v1/users`               | Public        | Register a learner; returns `201` with an account summary. |
-| `POST /api/v1/auth/login`          | Public        | Check credentials and email a code; returns `202`.         |
-| `POST /api/v1/auth/verify-login`   | Public        | Verify the code and set a session cookie; returns `204`.   |
-| `POST /api/v1/auth/logout`         | Authenticated | Revoke the current session and clear its cookie; `204`.    |
-| `GET /api/v1/me`                   | Authenticated | Return the current account and role; `200`.                |
-| `GET /api/v1/users`                | `ADMIN`       | List account summaries; `200`.                             |
-| `PATCH /api/v1/users/:userId/role` | `ADMIN`       | Assign `LEARNER`, `MAINTAINER`, or `ADMIN`; `200`.         |
+The table describes the target CILogon API. The two CILogon routes are planned;
+the remaining routes retain their session and role behavior after the switch.
 
-Account summaries contain only `id`, `email`, `username`, and `role`. Registration
-accepts `email`, `username`, and `password`; clients cannot assign a role.
-Usernames contain 3–50 letters, digits, or underscores, and passwords contain
-15–128 characters. Email and username identities are normalized to lowercase.
+| Endpoint                            | Access        | Description                                                                                |
+| ----------------------------------- | ------------- | ------------------------------------------------------------------------------------------ |
+| `GET /api/v1/auth/cilogon/login`    | Public        | Start sign-in and redirect to CILogon; planned.                                            |
+| `GET /api/v1/auth/cilogon/callback` | Public        | Validate sign-in, find/create the local user, set a session cookie, and redirect; planned. |
+| `POST /api/v1/auth/logout`          | Authenticated | Revoke the current session and clear its cookie; `204`.                                    |
+| `GET /api/v1/me`                    | Authenticated | Return the current account and role; `200`.                                                |
+| `GET /api/v1/users`                 | `ADMIN`       | List account summaries; `200`.                                                             |
+| `PATCH /api/v1/users/:userId/role`  | `ADMIN`       | Assign `LEARNER`, `MAINTAINER`, or `ADMIN`; `200`.                                         |
 
-Login accepts `emailOrUsername` and `password`. It returns a `challengeId` and
-`expiresAt`, but does not establish a session. Verification accepts that
-`challengeId` and the six-digit `code` from Mailpit. Codes expire after ten
-minutes, allow at most five incorrect attempts, and can be used only once.
-An SMTP delivery failure returns `503`.
+First successful CILogon sign-in will create a local `LEARNER` account.
+Subsequent sign-ins resolve the same account through its issuer and subject.
+
+Account summaries currently contain `id`, `email`, `username`, and `role`.
+Their response types still need to handle nullable email. The entity's new
+`displayName` and `lastLoginAt` fields are not automatically added to responses.
 
 Sessions expire after 24 hours. The cookie is named `session` in development
 and `__Host-session` when `NODE_ENV=production`. Both use HttpOnly,
@@ -249,36 +234,6 @@ input returns `400`, and missing target users return `404`. Demoting the final
 administrator returns `409`. Role changes take effect on the next request using
 existing sessions. Concurrent role changes are serialized in a transaction to
 preserve the final administrator.
-
-### Test email login
-
-With Mailpit and NestJS running, register a learner and request a login code:
-
-```bash
-curl -X POST http://localhost:3000/api/v1/users \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"learner@example.org","username":"learner","password":"long passphrase here"}'
-
-curl -X POST http://localhost:3000/api/v1/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"emailOrUsername":"learner","password":"long passphrase here"}'
-```
-
-For an existing account, start with login. Copy `challengeId` from its response
-and read the code at [http://localhost:8025](http://localhost:8025). Replace the
-placeholder values below, verify the code, and use the saved cookie:
-
-```bash
-curl -c /tmp/learning-hub-cookies.txt \
-  -X POST http://localhost:3000/api/v1/auth/verify-login \
-  -H 'Content-Type: application/json' \
-  -d '{"challengeId":"replace-with-challenge-id","code":"123456"}'
-
-curl -b /tmp/learning-hub-cookies.txt http://localhost:3000/api/v1/me
-
-curl -b /tmp/learning-hub-cookies.txt -c /tmp/learning-hub-cookies.txt \
-  -X POST http://localhost:3000/api/v1/auth/logout
-```
 
 Logout waits for session revocation before clearing the cookie. Further requests
 using that session return `401`, including repeated logout requests.
@@ -448,18 +403,16 @@ role and restores it to `LEARNER` at the end.
 
 ## Stop the local services
 
-Stop PostgreSQL while preserving its data, and stop Mailpit if you started it:
+Stop PostgreSQL while preserving its data:
 
 ```bash
 docker compose stop postgres
-docker stop learning-hub-mailpit
 ```
 
 Start it again later with:
 
 ```bash
 docker compose start postgres
-docker start learning-hub-mailpit
 ```
 
 ## Development workflow
@@ -470,7 +423,7 @@ Create feature branches from `dev` and open feature pull requests back into
 ## Architecture documentation
 
 - [NestJS module architecture](docs/architecture/nestjs-modules.md)
-- [Local authentication and authorization](docs/local-authentication-and-authorization-design.md)
+- [CILogon authentication and local authorization](docs/local-authentication-and-authorization-design.md)
 - [Persistence class diagram](docs/sdsc-learning-hub-persistence-class-diagram.md)
 - [Implementation brief](docs/intern-implementation-brief.md)
 - [System contracts](docs/contracts/agent-entrypoint.md)
