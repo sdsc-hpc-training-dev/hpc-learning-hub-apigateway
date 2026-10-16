@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { AuthService } from './auth.service';
 import { CilogonClientService } from './cilogon.service';
@@ -28,6 +29,7 @@ it('propagates revocation failure instead of completing logout successfully', as
   const service = new AuthService(
     { revokeSession } as unknown as AuthenticationRepository,
     {} as CilogonClientService,
+    {} as ConfigService,
   );
   await expect(service.logoutUser('session-id')).rejects.toBe(error);
 });

@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { AuthService } from './auth.service';
 import { CilogonClientService } from './cilogon.service';
@@ -16,6 +17,7 @@ function setup() {
   const service = new AuthService(
     { createLoginTransaction } as unknown as AuthenticationRepository,
     { buildLoginUrl } as unknown as CilogonClientService,
+    {} as ConfigService,
   );
   return { service, createLoginTransaction, buildLoginUrl };
 }
