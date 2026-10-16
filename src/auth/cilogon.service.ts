@@ -91,6 +91,11 @@ export class CilogonClientService {
       throw new Error('CILogon did not return identity claims');
     }
 
-    return claims;
+    const profile = await client.fetchUserInfo(
+      configuration,
+      tokens.access_token,
+      claims.sub,
+    );
+    return { ...profile, ...claims, iss: claims.iss, sub: claims.sub };
   }
 }

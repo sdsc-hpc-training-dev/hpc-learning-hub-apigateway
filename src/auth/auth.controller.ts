@@ -9,14 +9,19 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { sessionCookieClearOptions, sessionCookieName } from './session-cookie';
+import {
+  sessionCookieClearOptions,
+  sessionCookieName,
+  sessionCookieOptions,
+} from './session-cookie';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 import type { AuthenticatedRequest } from './decorators/current-user.decorator';
 import {
   oidcLoginCookieName,
   oidcLoginCookieOptions,
+  oidcLoginCookieClearOptions,
 } from './oidc-login-cookie';
 
 @Controller('auth')
@@ -32,6 +37,45 @@ export class AuthController {
       oidcLoginCookieOptions(result.expiresAt),
     );
     response.redirect(HttpStatus.FOUND, result.authorizationUrl);
+  }
+
+  @Get('cilogon/callback')
+  async completeCilogonLogin(
+    @Req() request: Request,
+    @Res() response: Response,
+  ): Promise<void> {
+    const prefix = `${oidcLoginCookieName()}=`;
+    const cookies =
+      request.headers.cookie
+        ?.split(';')
+        .map((part) => part.trim())
+        .filter((part) => part.startsWith(prefix)) ?? [];
+    const browserBinding =
+      cookies.length === 1 ? cookies[0]!.slice(prefix.length) : undefined;
+    try {
+      const result = await this.authService.completeCilogonLogin(
+        request.originalUrl,
+        browserBinding,
+        request.ip ?? null,
+        request.get('user-agent') ?? null,
+      );
+      response.cookie(
+        sessionCookieName(),
+        result.token,
+        sessionCookieOptions(result.expiresAt),
+      );
+      response.clearCookie(
+        oidcLoginCookieName(),
+        oidcLoginCookieClearOptions(),
+      );
+      response.redirect(HttpStatus.FOUND, result.redirectUrl);
+    } catch (error: unknown) {
+      response.clearCookie(
+        oidcLoginCookieName(),
+        oidcLoginCookieClearOptions(),
+      );
+      throw error;
+    }
   }
 
   @Post('logout')

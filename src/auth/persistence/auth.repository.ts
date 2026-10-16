@@ -1,7 +1,14 @@
-import { Injectable } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
+import { randomUUID } from 'crypto';
 import { AuthSession } from '../../database/entities/auth-session.entity';
 import { OidcLoginTransaction } from '../../database/entities/oidc-login-transaction.entity';
+import { AuthIdentity } from '../../database/entities/auth-identity.entity';
+import { User, UserRole } from '../../database/entities/user.entity';
 @Injectable()
 export class AuthenticationRepository {
   constructor(private readonly dataSource: DataSource) {}
@@ -87,5 +94,80 @@ export class AuthenticationRepository {
 
       return attempt;
     });
+  }
+
+  async establishCilogonSession(input: {
+    issuer: string;
+    subject: string;
+    email: string | null;
+    displayName: string | null;
+    identityProvider: string | null;
+    tokenHash: string;
+    expiresAt: Date;
+    ipAddress: string | null;
+    userAgent: string | null;
+  }): Promise<void> {
+    try {
+      await this.dataSource.transaction('READ COMMITTED', async (manager) => {
+        await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+          JSON.stringify([input.issuer, input.subject]),
+        ]);
+        const identities = manager.getRepository(AuthIdentity);
+        const users = manager.getRepository(User);
+        const identity = await identities.findOne({
+          where: { issuer: input.issuer, subject: input.subject },
+        });
+        let userId = identity?.userId;
+        const lastLoginAt = new Date();
+        if (!userId) {
+          userId = randomUUID();
+          await users.save(
+            users.create({
+              id: userId,
+              username: `user_${userId.replaceAll('-', '')}`,
+              email: input.email,
+              displayName: input.displayName,
+              role: UserRole.LEARNER,
+              lastLoginAt,
+            }),
+          );
+          await identities.save(
+            identities.create({
+              userId,
+              issuer: input.issuer,
+              subject: input.subject,
+              identityProvider: input.identityProvider,
+              institution: null,
+            }),
+          );
+        } else {
+          const result = await users.update({ id: userId }, { lastLoginAt });
+          if (result.affected !== 1)
+            throw new UnauthorizedException('Account no longer exists');
+        }
+        await this.createSession(
+          {
+            userId,
+            tokenHash: input.tokenHash,
+            expiresAt: input.expiresAt,
+            ipAddress: input.ipAddress,
+            userAgent: input.userAgent,
+          },
+          manager,
+        );
+      });
+    } catch (error: unknown) {
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { code?: string }).code === '23505' &&
+        (error.driverError as { constraint?: string }).constraint ===
+          'UQ_users_email'
+      ) {
+        throw new ConflictException(
+          'Email is associated with another account; contact an administrator',
+        );
+      }
+      throw error;
+    }
   }
 }

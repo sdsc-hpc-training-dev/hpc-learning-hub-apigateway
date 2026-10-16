@@ -58,7 +58,7 @@ Migrations are not applied automatically when NestJS starts. Run
 
 Authentication uses a CILogon identity model with local application sessions
 and roles. The TypeORM entities are registered and the CILogon migration is available.
-CILogon login endpoints are still pending.
+The CILogon login and callback endpoints establish local application sessions.
 
 | Table                     | Purpose and constraints                                                                                                                                                                                                                                        |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -71,15 +71,16 @@ Email and username are profile fields; CILogon authentication will look up the
 validated issuer and subject. Roles remain local and are not assigned from
 provider claims. Bookmarks and personal paths continue referencing `users.id`.
 The PKCE verifier is excluded from default TypeORM selects; the callback lookup
-must explicitly select it. Expiry checks, single-use consumption, browser
-binding, and cleanup still need to be implemented in the login service.
+must explicitly select it. Expiry checks, single-use consumption,
+and browser binding are enforced by the login flow. Periodic cleanup remains
+to be implemented.
 
 The CILogon migration creates the identity and login-transaction tables and
 updates `users`. Keep historical migrations intact. Running `migration:run` applies only checked-in migrations;
 it does not generate schema changes from the entities. Apply the CILogon
 migration after restoring a snapshot that predates it.
 See the [authentication design](docs/local-authentication-and-authorization-design.md)
-for entity fields, relationships, and the planned sign-in flow.
+for entity fields, relationships, and the sign-in flow.
 
 ### Restore the committed database snapshot
 
@@ -204,20 +205,29 @@ parameters. Relationship filters use canonical IDs.
 
 ### Authentication and users
 
-The table describes the target CILogon API. The two CILogon routes are planned;
-the remaining routes retain their session and role behavior after the switch.
+The CILogon endpoints use browser redirects. Protected endpoints use the local
+application session cookie and database roles.
 
-| Endpoint                            | Access        | Description                                                                                |
-| ----------------------------------- | ------------- | ------------------------------------------------------------------------------------------ |
-| `GET /api/v1/auth/cilogon/login`    | Public        | Start sign-in and redirect to CILogon; planned.                                            |
-| `GET /api/v1/auth/cilogon/callback` | Public        | Validate sign-in, find/create the local user, set a session cookie, and redirect; planned. |
-| `POST /api/v1/auth/logout`          | Authenticated | Revoke the current session and clear its cookie; `204`.                                    |
-| `GET /api/v1/me`                    | Authenticated | Return the current account and role; `200`.                                                |
-| `GET /api/v1/users`                 | `ADMIN`       | List account summaries; `200`.                                                             |
-| `PATCH /api/v1/users/:userId/role`  | `ADMIN`       | Assign `LEARNER`, `MAINTAINER`, or `ADMIN`; `200`.                                         |
+| Endpoint                            | Access        | Description                                                                              |
+| ----------------------------------- | ------------- | ---------------------------------------------------------------------------------------- |
+| `GET /api/v1/auth/cilogon/login`    | Public        | Start sign-in and redirect to CILogon; `302`.                                            |
+| `GET /api/v1/auth/cilogon/callback` | Public        | Validate sign-in, find/create the local user, set a session cookie, and redirect; `302`. |
+| `POST /api/v1/auth/logout`          | Authenticated | Revoke the current session and clear its cookie; `204`.                                  |
+| `GET /api/v1/me`                    | Authenticated | Return the current account and role; `200`.                                              |
+| `GET /api/v1/users`                 | `ADMIN`       | List account summaries; `200`.                                                           |
+| `PATCH /api/v1/users/:userId/role`  | `ADMIN`       | Assign `LEARNER`, `MAINTAINER`, or `ADMIN`; `200`.                                       |
 
-First successful CILogon sign-in will create a local `LEARNER` account.
+First successful CILogon sign-in creates a local `LEARNER` account.
 Subsequent sign-ins resolve the same account through its issuer and subject.
+
+The callback validates and consumes the browser-bound login attempt, exchanges
+its authorization code, and retrieves UserInfo with a matching subject. New
+users receive a generated username and `LEARNER`; returning users keep their
+profile and role. Email collisions return `409` without linking accounts.
+Invalid, expired, replayed, or denied sign-ins return `401` and clear the temporary
+login cookie. URL configuration errors return `503`. Successful callbacks create
+a 24-hour local session and redirect to `FRONTEND_URL`; supplied return destinations
+are not used. Provider tokens are never returned to the browser.
 
 Account summaries currently contain `id`, `email`, `username`, and `role`.
 Their response types still need to handle nullable email. The entity's new

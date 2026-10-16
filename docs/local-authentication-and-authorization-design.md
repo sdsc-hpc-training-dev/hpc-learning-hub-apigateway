@@ -4,8 +4,8 @@ The target model uses CILogon OpenID Connect for sign-in and local application
 sessions and roles for authorization. Public catalog access remains unauthenticated.
 
 The entity model below is implemented and registered with TypeORM, and its
-CILogon migration is checked in. The CILogon endpoints are still pending. The authentication flow and CILogon routes
-below describe the intended next increment.
+CILogon migration is checked in. Login initiation and callback handling are
+implemented with local session creation and browser redirects.
 
 ## Identity and persistence model
 
@@ -167,7 +167,7 @@ update PostgreSQL or the committed database snapshot.
 
 ## Authentication flow
 
-1. Browser navigation to the planned `GET /auth/cilogon/login` creates a
+1. Browser navigation to `GET /auth/cilogon/login` creates a
    short-lived `OidcLoginTransaction` and temporary HttpOnly browser-binding
    cookie. The response redirects to CILogon with state, nonce, and a PKCE
    `S256` challenge using authorization-code flow.
@@ -196,8 +196,7 @@ update PostgreSQL or the committed database snapshot.
 7. Logout awaits revocation of the current session, then clears its cookie with
    matching cookie settings. Other sessions belonging to the account remain valid.
 
-The old email-code attempt limit and ten-minute challenge lifetime do not apply
-to OIDC transactions. Their lifetime and cleanup policy still need to be selected.
+OIDC transactions expire after ten minutes. Periodic cleanup is still pending.
 Existing local sessions use a 24-hour lifetime. The target flow reuses that policy;
 local logout does not automatically end the institution's identity-provider session.
 
@@ -208,26 +207,25 @@ attribute is set. The raw token is never returned in JSON.
 
 ## API surface and roles
 
-All routes below use the `/api/v1` prefix. The table describes the target API;
-the two CILogon routes are planned, and existing protected routes retain their
-session and role behavior after the switch.
+All routes below use the `/api/v1` prefix. CILogon routes handle browser
+redirects; protected routes resolve local sessions and roles.
 
-| Endpoint                             | Access        | Purpose                                                                            |
-| ------------------------------------ | ------------- | ---------------------------------------------------------------------------------- |
-| `GET /auth/cilogon/login`            | Public        | Start sign-in and redirect to CILogon; planned.                                    |
-| `GET /auth/cilogon/callback`         | Public        | Validate sign-in, provision/find the user, and establish a local session; planned. |
-| `POST /auth/logout`                  | Authenticated | Revoke the current session.                                                        |
-| `GET /me`                            | Authenticated | Return the current account and role.                                               |
-| `GET /users`                         | `ADMIN`       | List account summaries without credentials.                                        |
-| `PATCH /users/{userId}/role`         | `ADMIN`       | Assign `LEARNER`, `MAINTAINER`, or `ADMIN`.                                        |
-| `GET /me/bookmarks`                  | Authenticated | List the caller's saved materials.                                                 |
-| `POST /me/bookmarks`                 | Authenticated | Save an existing material.                                                         |
-| `DELETE /me/bookmarks/{materialId}`  | Authenticated | Remove the caller's bookmark.                                                      |
-| `GET /me/learning-paths`             | Authenticated | List the caller's personal learning paths.                                         |
-| `POST /me/learning-paths`            | Authenticated | Create a personal learning path.                                                   |
-| `GET /me/learning-paths/{pathId}`    | Authenticated | Read one caller-owned personal learning path.                                      |
-| `PATCH /me/learning-paths/{pathId}`  | Authenticated | Update one caller-owned personal learning path.                                    |
-| `DELETE /me/learning-paths/{pathId}` | Authenticated | Delete one caller-owned personal learning path.                                    |
+| Endpoint                             | Access        | Purpose                                                                          |
+| ------------------------------------ | ------------- | -------------------------------------------------------------------------------- |
+| `GET /auth/cilogon/login`            | Public        | Start sign-in and redirect to CILogon; `302`.                                    |
+| `GET /auth/cilogon/callback`         | Public        | Validate sign-in, provision/find the user, and establish a local session; `302`. |
+| `POST /auth/logout`                  | Authenticated | Revoke the current session.                                                      |
+| `GET /me`                            | Authenticated | Return the current account and role.                                             |
+| `GET /users`                         | `ADMIN`       | List account summaries without credentials.                                      |
+| `PATCH /users/{userId}/role`         | `ADMIN`       | Assign `LEARNER`, `MAINTAINER`, or `ADMIN`.                                      |
+| `GET /me/bookmarks`                  | Authenticated | List the caller's saved materials.                                               |
+| `POST /me/bookmarks`                 | Authenticated | Save an existing material.                                                       |
+| `DELETE /me/bookmarks/{materialId}`  | Authenticated | Remove the caller's bookmark.                                                    |
+| `GET /me/learning-paths`             | Authenticated | List the caller's personal learning paths.                                       |
+| `POST /me/learning-paths`            | Authenticated | Create a personal learning path.                                                 |
+| `GET /me/learning-paths/{pathId}`    | Authenticated | Read one caller-owned personal learning path.                                    |
+| `PATCH /me/learning-paths/{pathId}`  | Authenticated | Update one caller-owned personal learning path.                                  |
+| `DELETE /me/learning-paths/{pathId}` | Authenticated | Delete one caller-owned personal learning path.                                  |
 
 `MAINTAINER` is reserved for future content-management endpoints. It has no
 V1 content-authoring endpoint. First sign-in will create `LEARNER` accounts;
@@ -236,19 +234,23 @@ a controlled promotion process after CILogon sign-in.
 
 ## Endpoint payloads
 
-`GET /auth/cilogon/login` is planned as a browser navigation endpoint with no
-request body. It will create the attempt and return a `302` redirect to CILogon.
+`GET /auth/cilogon/login` is a browser navigation endpoint with no request
+body. It creates the attempt and returns a `302` redirect to CILogon.
 Any optional return destination must be restricted to approved frontend locations.
 
-`GET /auth/cilogon/callback` is planned to receive the authorization code and
+`GET /auth/cilogon/callback` receives the authorization code and
 state as query parameters, or a provider error if sign-in was cancelled.
-It will establish the local session and redirect to the frontend after successful
+It establishes the local session and redirects to `FRONTEND_URL` after successful
 validation and persistence. The browser does not receive provider tokens or the
-PKCE verifier. Callback error responses and the exact return-destination policy
-remain part of [D-04](contracts/decisions-needed.md#D-04).
+PKCE verifier. Missing or invalid state/browser binding, expired or consumed
+attempts, denied sign-in, and failed provider validation return `401`. Email
+collisions return `409` without account linking. URL configuration errors return
+`503`. Failure clears the temporary login cookie and preserves any existing
+application session. Only the configured frontend destination is used; request
+parameters and stored custom return destinations do not override it.
 
 Current account summaries contain `id`, `email`, `username`, and `role`.
-Response DTOs and consumers need to support nullable email. `displayName` and
+Email is nullable in the response DTO. `displayName` and
 `lastLoginAt` are entity fields and are not automatically exposed by existing DTOs.
 
 `POST /auth/logout` has no body. It returns `204 No Content`, revokes the
@@ -362,7 +364,8 @@ Client credentials belong in server configuration. Request `openid email profile
 and add `org.cilogon.userinfo` only when the optional provider metadata is needed.
 CILogon can omit email and name even when requested. Its
 [OIDC documentation](https://www.cilogon.org/oidc) describes registration,
-discovery, claims, and PKCE. The client integration and configuration are still pending.
+discovery, claims, and PKCE. Set `CILOGON_CLIENT_ID`, `CILOGON_CLIENT_SECRET`,
+`CILOGON_REDIRECT_URI`, and `FRONTEND_URL` in server configuration.
 
 Set `ADMIN_USER_ID` to the UUID of a local user with a linked CILogon identity,
 then run `npm run seed:admin` to promote that account. The script does not create
