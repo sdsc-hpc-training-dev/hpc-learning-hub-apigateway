@@ -1,6 +1,7 @@
+import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { AuthService } from './auth.service';
-import { PasswordService } from './password.service';
+import { CilogonClientService } from './cilogon.service';
 import { AuthenticationRepository } from './persistence/auth.repository';
 
 it('does not finish revocation until the database update completes', async () => {
@@ -27,8 +28,8 @@ it('propagates revocation failure instead of completing logout successfully', as
   const revokeSession = jest.fn().mockRejectedValue(error);
   const service = new AuthService(
     { revokeSession } as unknown as AuthenticationRepository,
-    {} as PasswordService,
-    { sendLoginCode: jest.fn() },
+    {} as CilogonClientService,
+    {} as ConfigService,
   );
   await expect(service.logoutUser('session-id')).rejects.toBe(error);
 });

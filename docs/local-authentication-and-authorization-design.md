@@ -1,15 +1,26 @@
-# Local Authentication and Authorization Design
+# CILogon Authentication and Local Authorization Design
 
-The implemented V1 model uses local email/username and password authentication.
-It retains one local role per user and keeps public catalog access unauthenticated.
+The target model uses CILogon OpenID Connect for sign-in and local application
+sessions and roles for authorization. Public catalog access remains unauthenticated.
+
+The entity model below is implemented and registered with TypeORM, and its
+CILogon migration is checked in. Login initiation and callback handling are
+implemented with local session creation and browser redirects.
 
 ## Identity and persistence model
 
-- Store local credentials on `User`: email/username and a scrypt password hash.
-  Passwords themselves are never stored.
-- Use `AuthChallenge` for the short period between password validation and
-  email-code verification. It is not a logged-in session.
-- Create `AuthSession` after verification succeeds. Its hashed token, expiry, and
+- Keep a local `User` UUID, required unique username, nullable unique email,
+  nullable display name and last-login time, role, and managed timestamps.
+  The entity no longer stores `passwordHash`.
+- Link `AuthIdentity` to `User` through a required, unique `userId`. The unique
+  `(issuer, subject)` pair identifies the external account. Store the validated
+  CILogon `iss` and `sub` exactly; email and username are profile fields rather
+  than authentication keys. Optional identity-provider and institution metadata
+  may be absent. User deletion cascades to the identity.
+- Use `OidcLoginTransaction` during the browser redirect and code exchange.
+  It replaces `AuthChallenge` and has no user relation because the person is
+  not identified when sign-in starts. Its fields are described below.
+- Create `AuthSession` after CILogon validation succeeds. Its hashed token, expiry, and
   revocation state allow logout and server-side session invalidation.
 - Each user has exactly one `UserRole`: `LEARNER`, `MAINTAINER`, or `ADMIN`.
   `ADMIN` lists accounts and changes roles; `MAINTAINER` is reserved for
@@ -17,6 +28,9 @@ It retains one local role per user and keeps public catalog access unauthenticat
 - `PersonalLearningPath` belongs to one user, and `PersonalPathItem` stores its
   ordered material references. All personal path operations are scoped to the
   session user, including requests made by administrators.
+- `Bookmark` belongs to one user and references one catalog material. Personal
+  path creation and item replacement require every submitted material to be
+  bookmarked by the session user.
 
 ```mermaid
 classDiagram
@@ -27,7 +41,8 @@ namespace IdentityAndLearning {
     +UUID id
     +string email
     +string username
-    +string passwordHash
+    +string displayName
+    +datetime lastLoginAt
     +UserRole role
     +datetime createdAt
     +datetime updatedAt
@@ -43,12 +58,23 @@ namespace IdentityAndLearning {
     +datetime createdAt
   }
 
-  class AuthChallenge {
+  class AuthIdentity {
     +UUID id
     +UUID userId
-    +AuthChallengePurpose purpose
-    +string codeHash
-    +integer attempts
+    +string issuer
+    +string subject
+    +string identityProvider
+    +string institution
+    +datetime createdAt
+  }
+
+  class OidcLoginTransaction {
+    +UUID id
+    +string stateHash
+    +string nonce
+    +string pkceVerifier
+    +string browserBindingHash
+    +string returnTo
     +datetime expiresAt
     +datetime consumedAt
     +datetime createdAt
@@ -69,6 +95,13 @@ namespace IdentityAndLearning {
     +integer position
   }
 
+  class Bookmark {
+    +UUID id
+    +UUID userId
+    +string materialId
+    +datetime createdAt
+  }
+
   class UserRole {
     <<enumeration>>
     LEARNER
@@ -76,10 +109,6 @@ namespace IdentityAndLearning {
     ADMIN
   }
 
-  class AuthChallengePurpose {
-    <<enumeration>>
-    LOGIN
-  }
 }
 
 namespace CatalogReference {
@@ -91,35 +120,85 @@ namespace CatalogReference {
 
 User "0..*" --> "1" UserRole : has role
 User "1" *-- "0..*" AuthSession : signs in with
-User "1" *-- "0..*" AuthChallenge : verifies login
+User "1" *-- "0..1" AuthIdentity : authenticates with CILogon
+User "1" *-- "0..*" Bookmark : saves
+Bookmark "0..*" --> "1" TrainingMaterial : references stable ID
 User "1" *-- "0..*" PersonalLearningPath : owns
 PersonalLearningPath "1" *-- "0..*" PersonalPathItem : orders
 PersonalPathItem "0..*" --> "1" TrainingMaterial : references stable ID
 ```
 
+`User.email`, `displayName`, and `lastLoginAt` are nullable. The username remains
+required and unique; new-user provisioning must assign an application username
+when provider claims do not supply a suitable value. PostgreSQL's unique email
+constraint permits multiple null values but rejects duplicate non-null addresses.
+An email collision must not silently link a different issuer/subject to an account.
+The issuer/subject constraint and one-to-one relation prevent an identity from
+belonging to multiple users and a user from having multiple linked identities.
+Provisioning must create the user and identity atomically; the database relation
+alone does not require every user row to already have an identity.
+
+The login-transaction table has the following fields:
+
+| Field                | Storage and purpose                                                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------- |
+| `id`                 | Generated UUID primary key.                                                                               |
+| `stateHash`          | Required text, unique; matches the returning authorization state.                                         |
+| `nonce`              | Required text; validates that the ID token belongs to the attempt.                                        |
+| `pkceVerifier`       | Required temporary secret; excluded from default TypeORM selects and explicitly loaded for code exchange. |
+| `browserBindingHash` | Required text; binds the attempt to a temporary browser cookie.                                           |
+| `returnTo`           | Nullable text; service code must validate the destination before storing or using it.                     |
+| `expiresAt`          | Required timestamp, indexed for expiry lookup and cleanup.                                                |
+| `consumedAt`         | Nullable timestamp; records single-use consumption.                                                       |
+| `createdAt`          | Database-managed creation timestamp.                                                                      |
+
+Properties map to snake-case columns in `auth_identities` and
+`oidc_login_transactions`. Neither table stores a provider access or refresh token.
+The local session table remains unchanged. State, nonce, browser binding, expiry,
+atomic consumption, and cleanup are service responsibilities; declaring the
+columns does not implement those checks. `select: false` limits accidental
+selection of the verifier but does not encrypt it or expire the record.
+
+No existing accounts need to be preserved for this development switch.
+The CILogon migration adds both tables and alters `users`. The unused
+`auth_challenges` table and `auth_challenge_purpose_enum` still require a separate
+cleanup migration. Keep historical migrations intact. TypeORM synchronization remains disabled, so entity changes alone do not
+update PostgreSQL or the committed database snapshot.
+
 ## Authentication flow
 
-1. `POST /auth/login` verifies the password and creates a short-lived
-   `AuthChallenge`; a six-digit verification code is sent to the user's email
-   through SMTP. The challenge stores the code's SHA-256 hash and expires after
-   ten minutes.
-2. `POST /auth/verify-login` consumes the code and creates an `AuthSession`.
-   The browser receives the raw session token in an HttpOnly, SameSite=Lax
-   cookie; the database stores its SHA-256 hash. The session expires after
-   24 hours.
-3. Every protected request resolves the cookie to a non-revoked, unexpired
+1. Browser navigation to `GET /auth/cilogon/login` creates a
+   short-lived `OidcLoginTransaction` and temporary HttpOnly browser-binding
+   cookie. The response redirects to CILogon with state, nonce, and a PKCE
+   `S256` challenge using authorization-code flow.
+2. CILogon authenticates through the selected identity provider and redirects
+   the browser to the registered `GET /auth/cilogon/callback` with code and state.
+   The backend checks state, browser binding, expiry, and single-use status,
+   then atomically consumes the attempt. A failed or replayed attempt cannot
+   establish a session.
+3. The backend exchanges the code using its client credentials and stored PKCE
+   verifier. Use an OIDC library to validate the ID token's signature, expected
+   issuer, audience, expiry, and nonce. The network exchange runs outside a
+   long-lived database transaction. Provider tokens stay server-side.
+4. Look up `AuthIdentity` using validated issuer and subject. On first sign-in,
+   create the local `LEARNER` user, identity, and session in one transaction;
+   handle concurrent first sign-ins through the identity's unique constraint.
+   Returning users retain their local UUID and role. Generate a fresh opaque
+   application token, store its SHA-256 hash in `AuthSession`, and set the
+   existing session cookie only after commit. Clear the temporary cookie and
+   redirect to an approved frontend destination.
+5. Every protected request resolves the cookie to a non-revoked, unexpired
    session, then derives the user and role server-side.
-4. Administrator routes run `SessionAuthGuard` followed by `AdminAuthGuard`.
+6. Administrator routes run `SessionAuthGuard` followed by `AdminAuthGuard`.
    The first establishes the current identity; the second requires `ADMIN`.
    Roles are read from the database on each request, so a role change applies to
    existing sessions on their next request.
-5. Logout awaits revocation of the current session, then clears its cookie with
+7. Logout awaits revocation of the current session, then clears its cookie with
    matching cookie settings. Other sessions belonging to the account remain valid.
 
-Verification allows at most five incorrect attempts per challenge. Failed
-attempts are committed before returning `401`. Successful verification locks
-and consumes the challenge in the same transaction that creates the session;
-an expired, exhausted, or consumed challenge cannot establish another session.
+OIDC transactions expire after ten minutes. Periodic cleanup is still pending.
+Existing local sessions use a 24-hour lifetime. The target flow reuses that policy;
+local logout does not automatically end the institution's identity-provider session.
 
 The development cookie is named `session` and permits local HTTP testing.
 With `NODE_ENV=production`, the name is `__Host-session` and Secure is enabled.
@@ -128,68 +207,51 @@ attribute is set. The raw token is never returned in JSON.
 
 ## API surface and roles
 
-All routes below use the `/api/v1` prefix. The table lists implemented endpoints.
+All routes below use the `/api/v1` prefix. CILogon routes handle browser
+redirects; protected routes resolve local sessions and roles.
 
-| Endpoint                             | Access        | Purpose                                            |
-| ------------------------------------ | ------------- | -------------------------------------------------- |
-| `POST /users`                        | Public        | Create a `LEARNER` account.                        |
-| `POST /auth/login`                   | Public        | Verify password and start email-code verification. |
-| `POST /auth/verify-login`            | Public        | Verify the code and establish a session.           |
-| `POST /auth/logout`                  | Authenticated | Revoke the current session.                        |
-| `GET /me`                            | Authenticated | Return the current account and role.               |
-| `GET /users`                         | `ADMIN`       | List account summaries without credentials.        |
-| `PATCH /users/{userId}/role`         | `ADMIN`       | Assign `LEARNER`, `MAINTAINER`, or `ADMIN`.        |
-| `GET /me/learning-paths`             | Authenticated | List the caller's personal learning paths.         |
-| `POST /me/learning-paths`            | Authenticated | Create a personal learning path.                   |
-| `GET /me/learning-paths/{pathId}`    | Authenticated | Read one caller-owned personal learning path.      |
-| `PATCH /me/learning-paths/{pathId}`  | Authenticated | Update one caller-owned personal learning path.    |
-| `DELETE /me/learning-paths/{pathId}` | Authenticated | Delete one caller-owned personal learning path.    |
+| Endpoint                             | Access        | Purpose                                                                          |
+| ------------------------------------ | ------------- | -------------------------------------------------------------------------------- |
+| `GET /auth/cilogon/login`            | Public        | Start sign-in and redirect to CILogon; `302`.                                    |
+| `GET /auth/cilogon/callback`         | Public        | Validate sign-in, provision/find the user, and establish a local session; `302`. |
+| `POST /auth/logout`                  | Authenticated | Revoke the current session.                                                      |
+| `GET /me`                            | Authenticated | Return the current account and role.                                             |
+| `GET /users`                         | `ADMIN`       | List account summaries without credentials.                                      |
+| `PATCH /users/{userId}/role`         | `ADMIN`       | Assign `LEARNER`, `MAINTAINER`, or `ADMIN`.                                      |
+| `GET /me/bookmarks`                  | Authenticated | List the caller's saved materials.                                               |
+| `POST /me/bookmarks`                 | Authenticated | Save an existing material.                                                       |
+| `DELETE /me/bookmarks/{materialId}`  | Authenticated | Remove the caller's bookmark.                                                    |
+| `GET /me/learning-paths`             | Authenticated | List the caller's personal learning paths.                                       |
+| `POST /me/learning-paths`            | Authenticated | Create a personal learning path.                                                 |
+| `GET /me/learning-paths/{pathId}`    | Authenticated | Read one caller-owned personal learning path.                                    |
+| `PATCH /me/learning-paths/{pathId}`  | Authenticated | Update one caller-owned personal learning path.                                  |
+| `DELETE /me/learning-paths/{pathId}` | Authenticated | Delete one caller-owned personal learning path.                                  |
 
 `MAINTAINER` is reserved for future content-management endpoints. It has no
-V1 content-authoring endpoint. Registration always creates `LEARNER` accounts;
-clients cannot supply a role. Bootstrap administrators are provisioned using
-the admin seed script and environment settings described below.
+V1 content-authoring endpoint. First sign-in will create `LEARNER` accounts;
+clients and provider claims cannot assign a role. Bootstrap administrators need
+a controlled promotion process after CILogon sign-in.
 
 ## Endpoint payloads
 
-`POST /users`
+`GET /auth/cilogon/login` is a browser navigation endpoint with no request
+body. It creates the attempt and returns a `302` redirect to CILogon.
+Any optional return destination must be restricted to approved frontend locations.
 
-```json
-{
-  "email": "learner@example.org",
-  "username": "learner",
-  "password": "long passphrase here"
-}
-```
+`GET /auth/cilogon/callback` receives the authorization code and
+state as query parameters, or a provider error if sign-in was cancelled.
+It establishes the local session and redirects to `FRONTEND_URL` after successful
+validation and persistence. The browser does not receive provider tokens or the
+PKCE verifier. Missing or invalid state/browser binding, expired or consumed
+attempts, denied sign-in, and failed provider validation return `401`. Email
+collisions return `409` without account linking. URL configuration errors return
+`503`. Failure clears the temporary login cookie and preserves any existing
+application session. Only the configured frontend destination is used; request
+parameters and stored custom return destinations do not override it.
 
-Returns `201 Created` with the new account's `id`, `email`, `username`, and
-`role`. The server always assigns `LEARNER`.
-
-Email addresses are limited to 254 characters. Usernames contain 3–50 letters,
-digits, or underscores, and passwords contain 15–128 characters. Email and
-username identities are trimmed and normalized to lowercase; passwords are
-preserved as supplied. A duplicate email or username returns `409 Conflict`.
-
-`POST /auth/login`
-
-```json
-{ "emailOrUsername": "learner@example.org", "password": "long passphrase here" }
-```
-
-Returns `202 Accepted` with `challengeId` and `expiresAt` after creating an
-email-code challenge. It does not create a session.
-Invalid credentials return `401 Unauthorized`; SMTP delivery failure returns
-`503 Service Unavailable`. Email is sent to the account's stored address even
-when the caller signs in with a username.
-
-`POST /auth/verify-login`
-
-```json
-{ "challengeId": "6cb66713-88ce-4ad9-8d0f-43937ca96553", "code": "123456" }
-```
-
-Returns `204 No Content` and sets the environment-appropriate session cookie.
-The raw session token is never returned in JSON.
+Current account summaries contain `id`, `email`, `username`, and `role`.
+Email is nullable in the response DTO. `displayName` and
+`lastLoginAt` are entity fields and are not automatically exposed by existing DTOs.
 
 `POST /auth/logout` has no body. It returns `204 No Content`, revokes the
 current session, and clears its cookie.
@@ -201,7 +263,7 @@ requests. Logout does not delete the session row.
 
 `GET /users` has no body and requires an `ADMIN` session. It returns `200 OK`
 with an array of account summaries containing `id`, `email`, `username`, and
-`role`, in creation order. Password hashes and session data are not exposed.
+`role`, in creation order. Identity secrets and session data are not exposed.
 
 `PATCH /users/{userId}/role`
 
@@ -253,7 +315,8 @@ Items may be omitted or empty, with at most 1000 entries per path. Each entry
 must be an object containing a nonblank `materialId` of at most 254 characters
 and an integer `position` between zero and 2,147,483,647. Material IDs and
 positions must each be unique within the path; gaps in positions are allowed.
-Material IDs must exist, including when they belong to older catalog snapshots.
+Material IDs must exist and be bookmarked by the caller, including when they
+belong to older catalog snapshots. An unbookmarked material returns `400`.
 Creating the path and its items is one transaction.
 
 `GET /me/learning-paths/{pathId}` has no body and returns `200 OK` with the
@@ -271,6 +334,9 @@ items value returns `400`. The same validation rules apply as on creation.
 The owner-scoped path row is locked during the transaction, and material
 references are validated before replacing items. A failed replacement leaves
 the previous path and items intact. Item-only updates also refresh `updatedAt`.
+Removing a bookmark does not delete existing path items. Updates that omit
+`items` still work; resubmitting an item whose bookmark was removed requires
+bookmarking that material again.
 
 `DELETE /me/learning-paths/{pathId}` has no body and returns `204 No Content`.
 It can delete only a path owned by the current user.
@@ -283,40 +349,40 @@ cookies return `401 Unauthorized`; and attempts to use an admin-only role
 endpoint without `ADMIN` return `403 Forbidden`.
 
 Unexpected body fields are rejected, including client-supplied ownership or
-role fields on public registration. API errors use `statusCode`, `error`,
+role fields on learner-owned operations. Existing JSON API errors use `statusCode`, `error`,
 `timestamp`, `message`, and `path`; validation messages may be arrays.
 
 ## Local setup and verification
 
-Apply the database migrations before using these endpoints. When restoring the
-committed catalog snapshot, restore it first and then run any newer migrations.
+Apply the CILogon authentication migration before using the new schema.
+When restoring the committed catalog snapshot, restore it first and then apply
+any newer migrations. `migration:run` alone cannot create a migration that has
+not been checked in. See the [README database model](../README.md#authentication-database-model).
 
-Local email testing uses a standalone Mailpit container because the current
-Compose file defines only PostgreSQL. Follow the
-[Mailpit startup instructions](../README.md#5-start-mailpit-for-local-email-testing)
-and open [the local inbox](http://localhost:8025). The email service defaults to
-`SMTP_HOST=localhost` and `SMTP_PORT=1025`; `AUTH_EMAIL_FROM` controls the sender.
-The current implementation uses SMTP and does not read `RESEND_API_KEY`.
+Register a confidential CILogon client with the exact backend callback URL.
+Client credentials belong in server configuration. Request `openid email profile`
+and add `org.cilogon.userinfo` only when the optional provider metadata is needed.
+CILogon can omit email and name even when requested. Its
+[OIDC documentation](https://www.cilogon.org/oidc) describes registration,
+discovery, claims, and PKCE. Set `CILOGON_CLIENT_ID`, `CILOGON_CLIENT_SECRET`,
+`CILOGON_REDIRECT_URI`, and `FRONTEND_URL` in server configuration.
 
-For the initial administrator, set `ADMIN_EMAIL`, `ADMIN_USERNAME`, and
-`ADMIN_PASS` in `.env`, then run:
+Set `ADMIN_USER_ID` to the UUID of a local user with a linked CILogon identity,
+then run `npm run seed:admin` to promote that account. The script does not create
+users or identify accounts by email.
+
+Entity metadata tests verify table registration, nullable profile fields,
+identity uniqueness and cascade behavior, login-transaction fields and indices,
+and unchanged session relationships. They do not apply migrations or verify
+CILogon authentication. Run them without a database connection:
 
 ```bash
-npx ts-node src/database/seed/seed-admin-account.ts
+npm test -- --runInBand src/database/entities/persistence.entities.spec.ts src/database/database.module.spec.ts
 ```
 
-The seed requires a password of 15–128 characters, hashes it with scrypt, and
-upserts the account by email. Rerunning it resets the password and assigns
-`ADMIN`. Use the script directly; the current `seed:admin` npm command points
-to the curated learning path seed.
-
-`npm run test:api` starts the API and runs the Postman collection against a
-populated test database. The runner creates two temporary learners, one admin,
-and their sessions, then cleans up their accounts and dependent data even when
-assertions fail. It does not require Mailpit or exercise the email login flow.
-Postman covers personal path CRUD, ownership, validation, administrator access,
-and role changes using existing sessions. Unit tests cover guard order, final-admin
-protection, competing demotions, stale admin permissions, and awaited revocation.
-GitHub Actions restores the catalog snapshot, applies migrations, and runs the
-same collection. See [the README](../README.md#postman-api-tests) for commands
-and Postman environment variables.
+The existing Postman collection covers personal path CRUD, ownership, validation,
+administrator access, and role changes with local sessions.
+`npm run test:api` starts the API and runs the collection against a
+populated test database, cleaning up temporary users and dependent data.
+The runner bookmarks the selected materials for the personal-path owner.
+See [the README](../README.md#postman-api-tests) for the existing commands and variables.

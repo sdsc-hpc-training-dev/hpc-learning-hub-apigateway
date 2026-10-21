@@ -6,7 +6,6 @@ import {
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { AdminAuthGuard } from '../auth/guards/admin-auth.guard';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
-import { PasswordService } from '../auth/password.service';
 import { UserRole } from '../database/entities/user.entity';
 import { UsersRepository } from './persistence/user.repository';
 import { UsersController } from './users.controller';
@@ -18,17 +17,14 @@ function setup() {
     email: 'user@example.org',
     username: 'user',
     role: UserRole.ADMIN,
-    passwordHash: 'private',
+    authIdentity: { subject: 'private' },
     sessions: ['private-token'],
   };
   const repository = {
     findAllUsers: jest.fn().mockResolvedValue([user]),
     updateRole: jest.fn().mockResolvedValue(user),
   };
-  const service = new UsersService(
-    repository as unknown as UsersRepository,
-    {} as PasswordService,
-  );
+  const service = new UsersService(repository as unknown as UsersRepository);
   return { repository, service, controller: new UsersController(service) };
 }
 
@@ -45,13 +41,6 @@ it('runs session authentication before administrator authorization on both route
       AdminAuthGuard,
     ]);
   }
-  expect(
-    Reflect.getMetadata(
-      GUARDS_METADATA,
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      UsersController.prototype.registerUser,
-    ),
-  ).toBeUndefined();
 });
 
 it('lists public user summaries without credentials or sessions', async () => {

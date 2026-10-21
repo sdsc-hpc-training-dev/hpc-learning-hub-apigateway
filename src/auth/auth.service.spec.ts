@@ -1,121 +1,128 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
-import { User, UserRole } from '../database/entities/user.entity';
-import { LoginDto } from './dto/login.dto';
-import { AuthenticationRepository } from './persistence/auth.repository';
-import { PasswordService } from './password.service';
 import { AuthService } from './auth.service';
+import { CilogonClientService } from './cilogon.service';
+import { AuthenticationRepository } from './persistence/auth.repository';
 
-const user: User = {
-  id: 'user-id',
-  email: 'learner@example.com',
-  username: 'learner',
-  passwordHash: 'stored-hash',
-  role: UserRole.LEARNER,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  sessions: [],
-  challenges: [],
-  personalLearningPaths: [],
-  bookmarks: [],
-};
+function setup() {
+  const createLoginTransaction = jest.fn().mockResolvedValue({});
+  const buildLoginUrl = jest.fn(
+    (input: { state: string; nonce: string; pkceVerifier: string }) => {
+      const url = new URL('https://cilogon.org/authorize');
+      url.searchParams.set('state', input.state);
+      url.searchParams.set('nonce', input.nonce);
+      return Promise.resolve(url);
+    },
+  );
+  const service = new AuthService(
+    { createLoginTransaction } as unknown as AuthenticationRepository,
+    { buildLoginUrl } as unknown as CilogonClientService,
+    {} as ConfigService,
+  );
+  return { service, createLoginTransaction, buildLoginUrl };
+}
 
-const input: LoginDto = {
-  emailOrUsername: ' Learner@Example.com ',
-  password: 'a-long-enough-password',
-};
+const hash = (value: string) =>
+  createHash('sha256').update(value).digest('base64url');
 
-// The service setup and its three behavior cases are kept together deliberately.
-// eslint-disable-next-line max-lines-per-function
-describe('AuthService loginUser', () => {
-  let findUserByNameOrEmail: jest.Mock;
-  let createLoginChallenge: jest.Mock;
-  let verifyPassword: jest.Mock;
-  let sendLoginCode: jest.Mock;
-  let challengeInput: { codeHash: string; expiresAt: Date } | undefined;
-  let deliveredLoginCode:
-    { email: string; code: string; expiresAt: Date } | undefined;
-  let service: AuthService;
-
-  beforeEach(() => {
-    findUserByNameOrEmail = jest.fn();
-    createLoginChallenge = jest.fn();
-    verifyPassword = jest.fn();
-    sendLoginCode = jest.fn();
-    challengeInput = undefined;
-    deliveredLoginCode = undefined;
-    service = new AuthService(
-      {
-        findUserByNameOrEmail,
-        createLoginChallenge,
-      } as unknown as AuthenticationRepository,
-      { verify: verifyPassword } as unknown as PasswordService,
-      { sendLoginCode },
-    );
+it('persists hashes tied to the authorization request and returned browser binding', async () => {
+  const { service, createLoginTransaction, buildLoginUrl } = setup();
+  const result = await service.startCilogonLogin();
+  const input = buildLoginUrl.mock.calls[0]?.[0];
+  if (!input) throw new Error('Expected authorization request');
+  for (const value of [
+    input.state,
+    input.nonce,
+    input.pkceVerifier,
+    result.browserBinding,
+  ]) {
+    expect(value).toMatch(/^[\w-]{43}$/);
+  }
+  expect(
+    new Set([
+      input.state,
+      input.nonce,
+      input.pkceVerifier,
+      result.browserBinding,
+    ]).size,
+  ).toBe(4);
+  expect(createLoginTransaction).toHaveBeenCalledWith({
+    stateHash: hash(input.state),
+    nonce: input.nonce,
+    pkceVerifier: input.pkceVerifier,
+    browserBindingHash: hash(result.browserBinding),
+    returnTo: null,
+    expiresAt: result.expiresAt,
   });
-
-  it('creates a hashed login challenge and emails its raw code', async () => {
-    findUserByNameOrEmail.mockResolvedValue(user);
-    verifyPassword.mockResolvedValue(true);
-    createLoginChallenge.mockImplementation(
-      (challenge: { codeHash: string; expiresAt: Date }) => {
-        challengeInput = challenge;
-        return Promise.resolve({
-          id: 'challenge-id',
-          expiresAt: challenge.expiresAt,
-        });
-      },
-    );
-    sendLoginCode.mockImplementation(
-      (email: string, code: string, expiresAt: Date) => {
-        deliveredLoginCode = { email, code, expiresAt };
-        return Promise.resolve();
-      },
-    );
-
-    const response = await service.loginUser(input);
-
-    expect(findUserByNameOrEmail).toHaveBeenCalledWith('learner@example.com');
-    expect(verifyPassword).toHaveBeenCalledWith(
-      input.password,
-      user.passwordHash,
-    );
-    expect(createLoginChallenge).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: user.id }),
-    );
-    expect(challengeInput).toBeDefined();
-    expect(deliveredLoginCode).toBeDefined();
-    expect(deliveredLoginCode!.code).toMatch(/^\d{6}$/);
-    expect(challengeInput!.codeHash).toBe(
-      createHash('sha256').update(deliveredLoginCode!.code).digest('base64url'),
-    );
-    expect(deliveredLoginCode!.expiresAt).toEqual(challengeInput!.expiresAt);
-    expect(deliveredLoginCode!.email).toBe(user.email);
-    expect(response).toEqual({
-      challengeId: 'challenge-id',
-      expiresAt: deliveredLoginCode!.expiresAt,
-    });
+  expect(new URL(result.authorizationUrl).searchParams.get('state')).toBe(
+    input.state,
+  );
+  expect(new URL(result.authorizationUrl).searchParams.get('nonce')).toBe(
+    input.nonce,
+  );
+  expect(result).toEqual({
+    authorizationUrl: expect.any(String) as string,
+    browserBinding: expect.any(String) as string,
+    expiresAt: expect.any(Date) as Date,
   });
+});
 
-  it('rejects an unknown identity without creating a challenge', async () => {
-    findUserByNameOrEmail.mockResolvedValue(null);
-
-    await expect(service.loginUser(input)).rejects.toBeInstanceOf(
-      UnauthorizedException,
+it('expires the login attempt exactly ten minutes after initiation', async () => {
+  jest.useFakeTimers();
+  jest.setSystemTime(new Date('2026-10-14T12:00:00Z'));
+  try {
+    const { service, createLoginTransaction } = setup();
+    const result = await service.startCilogonLogin();
+    expect(result.expiresAt).toEqual(new Date('2026-10-14T12:10:00Z'));
+    expect(createLoginTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ expiresAt: result.expiresAt }),
     );
-    expect(verifyPassword).not.toHaveBeenCalled();
-    expect(createLoginChallenge).not.toHaveBeenCalled();
-    expect(sendLoginCode).not.toHaveBeenCalled();
-  });
+  } finally {
+    jest.useRealTimers();
+  }
+});
 
-  it('rejects an incorrect password without creating a challenge', async () => {
-    findUserByNameOrEmail.mockResolvedValue(user);
-    verifyPassword.mockResolvedValue(false);
+it('generates fresh security values for each attempt', async () => {
+  const { service, buildLoginUrl } = setup();
+  const first = await service.startCilogonLogin();
+  const second = await service.startCilogonLogin();
+  const firstInput = buildLoginUrl.mock.calls[0]?.[0];
+  const secondInput = buildLoginUrl.mock.calls[1]?.[0];
+  expect(firstInput?.state).not.toBe(secondInput?.state);
+  expect(firstInput?.nonce).not.toBe(secondInput?.nonce);
+  expect(firstInput?.pkceVerifier).not.toBe(secondInput?.pkceVerifier);
+  expect(first.browserBinding).not.toBe(second.browserBinding);
+});
 
-    await expect(service.loginUser(input)).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
-    expect(createLoginChallenge).not.toHaveBeenCalled();
-    expect(sendLoginCode).not.toHaveBeenCalled();
-  });
+it('does not store an attempt if authorization URL construction fails', async () => {
+  const { service, buildLoginUrl, createLoginTransaction } = setup();
+  const error = new Error('CILogon unavailable');
+  buildLoginUrl.mockRejectedValue(error);
+  await expect(service.startCilogonLogin()).rejects.toBe(error);
+  expect(createLoginTransaction).not.toHaveBeenCalled();
+});
+
+it('propagates insert failures instead of returning redirect or cookie information', async () => {
+  const { service, createLoginTransaction } = setup();
+  const error = new Error('Database unavailable');
+  createLoginTransaction.mockRejectedValue(error);
+  await expect(service.startCilogonLogin()).rejects.toBe(error);
+});
+
+it('waits for the attempt to be saved before returning login information', async () => {
+  const { service, createLoginTransaction } = setup();
+  let finishSave!: () => void;
+  createLoginTransaction.mockReturnValue(
+    new Promise<void>((resolve) => {
+      finishSave = resolve;
+    }),
+  );
+  const finished = jest.fn();
+  const pending = service.startCilogonLogin().then(finished);
+  await Promise.resolve();
+  expect(createLoginTransaction).toHaveBeenCalledTimes(1);
+  expect(finished).not.toHaveBeenCalled();
+  finishSave();
+  await pending;
+  expect(finished).toHaveBeenCalledTimes(1);
 });

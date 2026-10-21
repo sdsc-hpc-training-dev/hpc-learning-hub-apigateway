@@ -25,7 +25,7 @@ function setup() {
     userId: 'owner-id',
     materialId: 'material-a',
     createdAt: new Date('2026-10-08T12:00:00Z'),
-    user: { passwordHash: 'private' },
+    user: { authIdentity: { subject: 'private' } },
     material: { internalMetadata: 'private' },
   };
   const repository = {

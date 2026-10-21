@@ -25,7 +25,7 @@ class MetadataDataSource extends DataSource {
 }
 
 const expectedTables = [
-  'auth_challenges',
+  'auth_identities',
   'auth_sessions',
   'bookmarks',
   'catalog_snapshots',
@@ -45,6 +45,7 @@ const expectedTables = [
   'material_systems',
   'material_tools',
   'material_topics',
+  'oidc_login_transactions',
   'people',
   'personal_learning_paths',
   'personal_path_items',
@@ -195,7 +196,7 @@ describe('curated learning path persistence metadata', () => {
 });
 
 describe('user persistence metadata', () => {
-  it('maps local account credentials, one role, and managed timestamps', () => {
+  it('maps local profiles, one role, and managed timestamps without passwords', () => {
     const users = table('users');
     const columns = new Map(
       users.columns.map((column) => [column.databaseName, column]),
@@ -206,12 +207,19 @@ describe('user persistence metadata', () => {
         'id',
         'email',
         'username',
-        'password_hash',
+        'display_name',
+        'last_login_at',
         'role',
         'created_at',
         'updated_at',
       ]),
     );
+    expect(columns.has('password_hash')).toBe(false);
+    expect(columns.get('email')?.isNullable).toBe(true);
+    expect(columns.get('username')?.isNullable).toBe(false);
+    expect(columns.get('display_name')?.isNullable).toBe(true);
+    expect(columns.get('last_login_at')?.isNullable).toBe(true);
+    expect(columns.get('role')?.default).toBe('LEARNER');
     expect(columns.get('role')?.enum).toEqual([
       'LEARNER',
       'MAINTAINER',
@@ -220,6 +228,125 @@ describe('user persistence metadata', () => {
     expect(users.uniques.map((unique) => unique.name)).toEqual(
       expect.arrayContaining(['UQ_users_email', 'UQ_users_username']),
     );
+  });
+});
+
+describe('CILogon authentication persistence metadata', () => {
+  it('uniquely links an issuer/subject pair to one local account', () => {
+    const identities = table('auth_identities');
+    const columns = new Map(
+      identities.columns.map((column) => [column.databaseName, column]),
+    );
+    expect(columns.get('id')?.isPrimary).toBe(true);
+    expect(columns.get('user_id')?.type).toBe('uuid');
+    expect(columns.get('issuer')?.isNullable).toBe(false);
+    expect(columns.get('subject')?.isNullable).toBe(false);
+    expect(columns.get('identity_provider')?.isNullable).toBe(true);
+    expect(columns.get('institution')?.isNullable).toBe(true);
+    const identityKey = identities.uniques.find(
+      (unique) => unique.name === 'UQ_auth_identities_issuer_subject',
+    );
+    expect(identityKey?.columns.map((column) => column.databaseName)).toEqual([
+      'issuer',
+      'subject',
+    ]);
+    expect(
+      identities.uniques.some(
+        (unique) =>
+          unique.columns.length === 1 &&
+          unique.columns[0]?.databaseName === 'user_id',
+      ),
+    ).toBe(true);
+    const user = identities.relations.find(
+      (relation) => relation.propertyName === 'user',
+    );
+    expect(user?.relationType).toBe('one-to-one');
+    expect(user?.onDelete).toBe('CASCADE');
+    expect(user?.isNullable).toBe(false);
+    expect(user?.joinColumns.map((column) => column.databaseName)).toEqual([
+      'user_id',
+    ]);
+    expect(user?.inverseEntityMetadata.tableName).toBe('users');
+    expect(user?.inverseRelation?.propertyName).toBe('authIdentity');
+    expect(
+      table('users').relations.some(
+        (relation) => relation.propertyName === 'challenges',
+      ),
+    ).toBe(false);
+  });
+});
+
+describe('OIDC login transaction persistence metadata', () => {
+  it('stores expiring, single-use login attempts without requiring a user', () => {
+    const attempts = table('oidc_login_transactions');
+    const columns = new Map(
+      attempts.columns.map((column) => [column.databaseName, column]),
+    );
+    expect([...columns.keys()]).toEqual([
+      'id',
+      'state_hash',
+      'nonce',
+      'pkce_verifier',
+      'browser_binding_hash',
+      'return_to',
+      'expires_at',
+      'consumed_at',
+      'created_at',
+    ]);
+    expect(columns.get('id')?.isPrimary).toBe(true);
+    for (const name of [
+      'state_hash',
+      'nonce',
+      'pkce_verifier',
+      'browser_binding_hash',
+      'expires_at',
+    ]) {
+      expect(columns.get(name)?.isNullable).toBe(false);
+    }
+    expect(columns.get('pkce_verifier')?.isSelect).toBe(false);
+    expect(columns.get('return_to')?.isNullable).toBe(true);
+    expect(columns.get('consumed_at')?.isNullable).toBe(true);
+    expect(attempts.relations).toHaveLength(0);
+    const stateKey = attempts.uniques.find(
+      (unique) => unique.name === 'UQ_oidc_login_transactions_state_hash',
+    );
+    expect(stateKey?.columns.map((column) => column.databaseName)).toEqual([
+      'state_hash',
+    ]);
+    const expiryIndex = attempts.indices.find(
+      (index) => index.givenName === 'IDX_oidc_login_transactions_expires',
+    );
+    expect(expiryIndex?.columns.map((column) => column.databaseName)).toEqual([
+      'expires_at',
+    ]);
+  });
+});
+
+describe('local session persistence metadata', () => {
+  it('preserves local sessions and their cascading user relationship', () => {
+    const sessions = table('auth_sessions');
+    const columns = new Map(
+      sessions.columns.map((column) => [column.databaseName, column]),
+    );
+    expect([...columns.keys()]).toEqual(
+      expect.arrayContaining([
+        'user_id',
+        'token_hash',
+        'expires_at',
+        'revoked_at',
+      ]),
+    );
+    expect(
+      sessions.uniques.some(
+        (unique) =>
+          unique.columns.length === 1 &&
+          unique.columns[0]?.databaseName === 'token_hash',
+      ),
+    ).toBe(true);
+    expect(
+      sessions.relations.find((relation) => relation.propertyName === 'user')
+        ?.onDelete,
+    ).toBe('CASCADE');
   });
 });
 

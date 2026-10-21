@@ -1,43 +1,12 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { PasswordService } from '../auth/password.service';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { User } from '../database/entities/user.entity';
-import { RegisterUserDto } from './dto/register-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UsersRepository } from './persistence/user.repository';
 import { UpdateUserRoleDto } from './dto/update-role.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    private readonly repository: UsersRepository,
-    private readonly passwords: PasswordService,
-  ) {}
-
-  async registerUser(registerInfo: RegisterUserDto): Promise<UserResponseDto> {
-    const email = registerInfo.email.trim().toLowerCase();
-    const username = registerInfo.username.trim().toLowerCase();
-    const existing = await this.repository.findByEmailOrUsername(
-      email,
-      username,
-    );
-
-    if (existing) {
-      throw new ConflictException('Email or username is already in use');
-    }
-
-    const passwordHash = await this.passwords.hash(registerInfo.password);
-    const user = await this.repository.createUser({
-      email,
-      username,
-      passwordHash,
-    });
-
-    return this.toResponse(user);
-  }
+  constructor(private readonly repository: UsersRepository) {}
 
   async findUserById(id: string): Promise<UserResponseDto> {
     const user = await this.repository.findUserById(id);

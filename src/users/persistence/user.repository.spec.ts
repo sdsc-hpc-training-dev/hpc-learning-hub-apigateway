@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { User } from '../../database/entities/user.entity';
 import { UsersRepository } from './user.repository';
 
 const user = { id: 'user-id' } as User;
@@ -45,7 +45,7 @@ it('lists users using only public fields in creation order', async () => {
   });
 });
 
-it('finds a user by id without selecting its password hash', async () => {
+it('finds a user by id using only public fields', async () => {
   const { repository, findOne } = createRepository();
 
   await expect(repository.findUserById('user-id')).resolves.toEqual(user);
@@ -53,37 +53,4 @@ it('finds a user by id without selecting its password hash', async () => {
     where: { id: 'user-id' },
     select: publicFields,
   });
-});
-
-it('looks up a user by either email or username for duplicate detection', async () => {
-  const { repository, query } = createRepository();
-
-  await expect(
-    repository.findByEmailOrUsername('learner@example.com', 'learner'),
-  ).resolves.toEqual(user);
-  expect(query.where).toHaveBeenCalledWith('user.email = :email', {
-    email: 'learner@example.com',
-  });
-  expect(query.orWhere).toHaveBeenCalledWith('user.username = :username', {
-    username: 'learner',
-  });
-});
-
-it('persists every newly registered user as a learner', async () => {
-  const { repository, create, save } = createRepository();
-
-  await expect(
-    repository.createUser({
-      email: 'learner@example.com',
-      username: 'learner',
-      passwordHash: 'stored-hash',
-    }),
-  ).resolves.toEqual(user);
-  expect(create).toHaveBeenCalledWith({
-    email: 'learner@example.com',
-    username: 'learner',
-    passwordHash: 'stored-hash',
-    role: UserRole.LEARNER,
-  });
-  expect(save).toHaveBeenCalledWith(user);
 });

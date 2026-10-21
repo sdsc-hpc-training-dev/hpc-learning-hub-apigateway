@@ -3104,7 +3104,7 @@
           "response": []
         },
         {
-          "name": "Public registration cannot assign an admin role",
+          "name": "Public registration is removed",
           "protocolProfileBehavior": {
             "disableCookies": true
           },
@@ -3116,16 +3116,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseURL}}/users",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"postman-registration@example.invalid\",\n  \"username\": \"postman_registration\",\n  \"password\": \"long-test-passphrase\",\n  \"role\": \"ADMIN\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
+            "url": "{{baseURL}}/users"
           },
           "event": [
             {
@@ -3133,7 +3124,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('returns 400', () => pm.response.to.have.status(400));",
+                  "pm.test('returns 404', () => pm.response.to.have.status(404));",
                   "pm.test('standard error contract', () => { const body = pm.response.json(); pm.expect(body).to.include.all.keys('statusCode', 'error', 'timestamp', 'message', 'path'); pm.expect(body.statusCode).to.eql(pm.response.code); });"
                 ]
               }
