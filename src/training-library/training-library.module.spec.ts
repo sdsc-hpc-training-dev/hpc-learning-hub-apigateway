@@ -60,6 +60,9 @@ const materialRecord = (): MaterialRecord => ({
       endAt: null,
       format: 'online',
       location: null,
+      eventUrl: 'https://www.sdsc.edu/events/workshop.html',
+      registrationUrl: 'https://registration.example/workshop',
+      isTimeDisplayed: 'yes',
     }),
   ],
   topics: [entity(Topic, { id: 'topic-z', name: 'Z topic' })],
@@ -163,9 +166,11 @@ describe('TrainingLibraryService material listing', () => {
         }),
       ],
       page: 1,
-      pageSize: 20,
+      pageSize: 10,
       total: 21,
-      totalPages: 2,
+      totalPages: 3,
+      sort: 'recommended',
+      rankingVersion: 'recommended-v1',
     });
   });
 
@@ -187,6 +192,7 @@ describe('TrainingLibraryService material listing', () => {
 
     expect(repository.findMaterials).toHaveBeenCalledWith({
       search: 'slurm',
+      searchMode: 'websearch',
       topic: 'topic-1',
       tool: 'tool-1',
       system: 'system-1',
@@ -194,6 +200,8 @@ describe('TrainingLibraryService material listing', () => {
       eventEdition: 'edition-1',
       instructor: 'person-1',
       resourceType: ResourceType.VIDEO,
+      date: undefined,
+      sort: 'recommended',
       page: 2,
       pageSize: 10,
     });
@@ -225,7 +233,12 @@ describe('TrainingLibraryService material detail', () => {
     await expect(service.findMaterial('material-1')).resolves.toMatchObject({
       id: 'material-1',
       eventEditions: [
-        expect.objectContaining({ startAt: '2026-09-01T10:00:00.000Z' }),
+        expect.objectContaining({
+          startAt: '2026-09-01T10:00:00.000Z',
+          eventUrl: 'https://www.sdsc.edu/events/workshop.html',
+          registrationUrl: 'https://registration.example/workshop',
+          isTimeDisplayed: true,
+        }),
       ],
     });
   });
@@ -360,6 +373,7 @@ interface EntityRepositoryDouble {
 }
 
 interface MaterialQueryBuilderDouble {
+  addSelect: jest.Mock;
   where: jest.Mock;
   andWhere: jest.Mock;
   orderBy: jest.Mock;
@@ -371,6 +385,7 @@ interface MaterialQueryBuilderDouble {
 
 const materialQueryBuilderDouble = (): MaterialQueryBuilderDouble => {
   const builder: MaterialQueryBuilderDouble = {
+    addSelect: jest.fn(),
     where: jest.fn(),
     andWhere: jest.fn(),
     orderBy: jest.fn(),
@@ -380,6 +395,7 @@ const materialQueryBuilderDouble = (): MaterialQueryBuilderDouble => {
     getManyAndCount: jest.fn(),
   };
   builder.where.mockReturnValue(builder);
+  builder.addSelect.mockReturnValue(builder);
   builder.andWhere.mockReturnValue(builder);
   builder.orderBy.mockReturnValue(builder);
   builder.addOrderBy.mockReturnValue(builder);

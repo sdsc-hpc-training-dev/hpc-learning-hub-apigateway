@@ -19,6 +19,12 @@ import {
 } from '../../database/entities/catalog.entity';
 import { ActiveSnapshotQuery } from './active-snapshot.query';
 import {
+  RESOURCE_TIER_SQL,
+  COMPLETENESS_SQL,
+  LATEST_EVENT_DATE_SQL,
+  METADATA_COMPLETENESS_SQL,
+} from './material-ranking';
+import {
   MaterialFilters,
   MaterialPageRecord,
   MaterialRecord,
@@ -41,14 +47,48 @@ export class TrainingLibraryRepository {
       .where('material.snapshotId = :snapshotId', { snapshotId });
 
     this.applyFilters(query, filters, snapshotId);
+    this.applyRanking(query, filters);
     const [materials, total] = await query
-      .orderBy('lower(material.title)', 'ASC')
-      .addOrderBy('material.id', 'ASC')
       .skip((filters.page - 1) * filters.pageSize)
       .take(filters.pageSize)
       .getManyAndCount();
 
     return { items: await this.hydrate(materials, snapshotId), total };
+  }
+
+  private applyRanking(
+    query: SelectQueryBuilder<TrainingMaterial>,
+    filters: MaterialFilters,
+  ): void {
+    if (filters.sort !== 'title') {
+      query
+        .addSelect(RESOURCE_TIER_SQL, 'resource_tier')
+        .orderBy('resource_tier', 'DESC');
+      if (filters.search) {
+        query
+          .addSelect(
+            filters.searchMode === 'phrase'
+              ? `CASE WHEN lower(btrim(material.title)) = lower(:search) THEN 3 WHEN regexp_replace(material.title, '\\s+', ' ', 'g') ILIKE :searchPattern THEN 2 ELSE 1 END`
+              : `ts_rank_cd(to_tsvector('simple', coalesce(material.title, '') || ' ' || coalesce(material.description, '')), websearch_to_tsquery('simple', :search))`,
+            'search_relevance',
+          )
+          .addOrderBy('search_relevance', 'DESC');
+      }
+      query
+        .addSelect(COMPLETENESS_SQL, 'content_completeness')
+        .addOrderBy('content_completeness', 'DESC')
+        .addSelect(LATEST_EVENT_DATE_SQL, 'latest_event_date')
+        .addOrderBy('latest_event_date', 'DESC', 'NULLS LAST')
+        .addSelect(METADATA_COMPLETENESS_SQL, 'metadata_completeness')
+        .addOrderBy('metadata_completeness', 'DESC');
+    }
+    query
+      .addSelect(
+        `lower(coalesce(material.title, '')) COLLATE "C"`,
+        'sort_title',
+      )
+      .addOrderBy('sort_title', 'ASC')
+      .addOrderBy('material.id', 'ASC');
   }
 
   async findMaterialById(materialId: string): Promise<MaterialRecord | null> {
@@ -139,8 +179,19 @@ export class TrainingLibraryRepository {
   ): void {
     if (filters.search) {
       query.andWhere(
-        `to_tsvector('simple', coalesce(material.title, '') || ' ' || coalesce(material.description, '')) @@ websearch_to_tsquery('simple', :search)`,
-        { search: filters.search },
+        filters.searchMode === 'phrase'
+          ? `(regexp_replace(coalesce(material.title, ''), '\\s+', ' ', 'g') ILIKE :searchPattern OR regexp_replace(coalesce(material.description, ''), '\\s+', ' ', 'g') ILIKE :searchPattern)`
+          : `to_tsvector('simple', coalesce(material.title, '') || ' ' || coalesce(material.description, '')) @@ websearch_to_tsquery('simple', :search)`,
+        {
+          search: filters.search,
+          searchPattern: `%${filters.search.replace(/\s+/g, ' ').replace(/[\\%_]/g, '\\$&')}%`,
+        },
+      );
+    }
+    if (filters.date) {
+      query.andWhere(
+        `EXISTS (SELECT 1 FROM event_materials em JOIN event_editions event ON event.id = em.event_edition_id WHERE em.material_id = material.id AND em.snapshot_id = :snapshotId AND event.snapshot_id = :snapshotId AND CAST(event.start_at AT TIME ZONE 'UTC' AS date) = CAST(:date AS date))`,
+        { date: filters.date },
       );
     }
     this.applyRelationshipFilters(query, filters, snapshotId);
@@ -187,8 +238,20 @@ export class TrainingLibraryRepository {
   ): void {
     if (!filterValue) return;
     const parameterName = `filter_${filterColumn}`;
+    const catalogTable = new Map([
+      ['topic_id', 'topics'],
+      ['tool_id', 'tools'],
+      ['system_id', 'systems'],
+      ['person_id', 'people'],
+    ]).get(filterColumn);
+    const catalogJoin = catalogTable
+      ? `JOIN ${catalogTable} catalog ON catalog.id = relation.${filterColumn} AND catalog.snapshot_id = :snapshotId`
+      : '';
+    const nameMatch = catalogTable
+      ? `OR lower(catalog.name) = lower(:${parameterName})`
+      : '';
     query.andWhere(
-      `EXISTS (SELECT 1 FROM ${table} relation WHERE relation.material_id = material.id AND relation.snapshot_id = :snapshotId AND relation.${filterColumn} = :${parameterName})`,
+      `EXISTS (SELECT 1 FROM ${table} relation ${catalogJoin} WHERE relation.material_id = material.id AND relation.snapshot_id = :snapshotId AND (relation.${filterColumn} = :${parameterName} ${nameMatch}))`,
       { ...parameters, [parameterName]: filterValue },
     );
   }

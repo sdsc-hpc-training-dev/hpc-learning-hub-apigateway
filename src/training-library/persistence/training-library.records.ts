@@ -10,6 +10,7 @@ import {
 import { ResourceType } from '../../database/entities/persistence.enums';
 
 export interface MaterialFilters {
+  searchMode?: 'websearch' | 'phrase' | undefined;
   search?: string | undefined;
   topic?: string | undefined;
   tool?: string | undefined;
@@ -18,6 +19,8 @@ export interface MaterialFilters {
   eventEdition?: string | undefined;
   instructor?: string | undefined;
   resourceType?: ResourceType | undefined;
+  date?: string | undefined;
+  sort?: 'recommended' | 'title' | undefined;
   page: number;
   pageSize: number;
 }

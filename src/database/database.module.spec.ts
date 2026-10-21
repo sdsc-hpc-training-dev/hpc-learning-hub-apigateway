@@ -64,11 +64,39 @@ describe('DatabaseModule configuration', () => {
       username: 'gateway',
       password: 'secret',
       database: 'learning_hub',
+      ssl: false,
       uuidExtension: 'pgcrypto',
       autoLoadEntities: true,
       synchronize: false,
       dropSchema: false,
     });
+  });
+
+  it('requires certificate-verified TLS when configured for Azure', () => {
+    const options = rootDatabaseConfig.useFactory(
+      configReader({
+        DB_USERNAME: 'gateway',
+        DB_PASSWORD: 'secret',
+        DB_DATABASE: 'learning_hub',
+        DB_SSL_MODE: 'require',
+      }),
+    );
+
+    expect(options.ssl).toEqual({ rejectUnauthorized: true });
+  });
+
+  it('rejects an unknown TLS mode', () => {
+    const buildOptions = () =>
+      rootDatabaseConfig.useFactory(
+        configReader({
+          DB_USERNAME: 'gateway',
+          DB_PASSWORD: 'secret',
+          DB_DATABASE: 'learning_hub',
+          DB_SSL_MODE: 'sometimes',
+        }),
+      );
+
+    expect(buildOptions).toThrow('DB_SSL_MODE must be');
   });
 
   it('uses localhost and port 5432 when optional settings are absent', () => {

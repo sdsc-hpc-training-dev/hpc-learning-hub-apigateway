@@ -12,5 +12,5 @@
 ## GitFlow checklist
 
 - [ ] The source and target follow the routes in `.github/GITFLOW.md`.
-- [ ] A release or hotfix PR to `main` also has a back-merge PR to `dev`.
+- [ ] A release or hotfix PR to `master` also has a back-merge PR to `dev`.
 - [ ] Any user-facing or operational impact is documented.
