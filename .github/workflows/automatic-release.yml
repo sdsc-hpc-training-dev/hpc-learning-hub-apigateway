@@ -13,12 +13,15 @@ jobs:
     if: >-
       startsWith(github.event.head_commit.message, 'RELEASE-')
     runs-on: ubuntu-latest
+    outputs:
+      source-sha: ${{ steps.release.outputs.source-sha }}
     env:
       GH_TOKEN: ${{ github.token }}
       COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
       COMMIT_SHA: ${{ github.sha }}
     steps:
       - name: Create branch from release commit
+        id: release
         shell: bash
         run: |
           commit_subject="${COMMIT_MESSAGE%%$'\n'*}"
@@ -30,11 +33,24 @@ jobs:
           fi
 
           branch="release/v$version"
-          if gh api "/repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --silent 2>/dev/null; then
+          if existing_sha=$(gh api "/repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha' 2>/dev/null); then
             echo "::notice::$branch already exists"
+            echo "source-sha=$existing_sha" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           gh api --method POST "/repos/$GITHUB_REPOSITORY/git/refs" \
             -f ref="refs/heads/$branch" \
             -f sha="$COMMIT_SHA"
+
+          echo "source-sha=$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+
+  build-image:
+    name: Build and publish release image
+    needs: create-branch
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/automatic-image.yml
+    with:
+      source-sha: ${{ needs.create-branch.outputs.source-sha }}
