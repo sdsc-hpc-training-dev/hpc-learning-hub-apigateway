@@ -13,8 +13,8 @@ branches. Changes reach `master` only through a reviewed release or hotfix.
 | `release/vX.Y.Z` | `dev`              | Release stabilization    | `master`, then `dev` |
 | `hotfix/<slug>`  | `master`           | Urgent production repair | `master`, then `dev` |
 
-Use lowercase feature slugs containing letters, numbers, `.`, `_`, or `-`, for
-example `feature/123-add-course-search`. Release branches use semantic versions
+Feature slugs may contain uppercase and lowercase letters, numbers, `.`, `_`, or `-`,
+for example `feature/devOps` or `feature/123-add-course-search`. Release branches use semantic versions
 in the form `release/vX.Y.Z`, for example `release/v1.4.0`.
 Legacy `RELEASE-X.Y.Z` branches remain accepted during migration. Hotfix branches use lowercase slugs containing letters,
 numbers, `.`, `_`, or `-`, for example `hotfix/fix-login-crash`.
