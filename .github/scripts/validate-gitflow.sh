@@ -5,7 +5,7 @@ set -euo pipefail
 head_branch=${1:?A pull request head branch is required}
 base_branch=${2:?A pull request base branch is required}
 
-feature_pattern='^feature/[a-z0-9][a-z0-9._-]*$'
+feature_pattern='^feature/[A-Za-z0-9][A-Za-z0-9._-]*$'
 release_pattern='^(release/v?[0-9]+\.[0-9]+\.[0-9]+|RELEASE-[0-9]+\.[0-9]+\.[0-9]+)$'
 hotfix_pattern='^hotfix/[a-z0-9][a-z0-9._-]*$'
 
