@@ -5,8 +5,8 @@ pgvector and TypeORM migrations.
 
 ## Prerequisites
 
-- Node.js `22.23.2`
-- npm `10.9.8`
+- Node.js `22.23.4`
+- npm `10.9.9`
 - Docker with Docker Compose
 
 ## Run locally
