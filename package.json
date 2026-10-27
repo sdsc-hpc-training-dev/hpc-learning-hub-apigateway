@@ -11,7 +11,8 @@
   },
   "packageManager": "npm@10.9.9",
   "overrides": {
-    "multer": "2.4.0"
+    "body-parser": "2.4.0",
+    "multer": "2.5.0"
   },
   "scripts": {
     "build": "nest build",
