@@ -1,0 +1,130 @@
+name: Automatic Prod Image Creation
+
+on:
+  push:
+    branches:
+      - 'master'
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: ghcr.io/sdsc-hpc-training-dev/hpc-learning-hub-apigateway
+  SOURCE_SHA: ${{ github.sha }}
+
+jobs:
+  run-checks-and-push-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+
+    # Temporary database created for this job.
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg17
+        env:
+          POSTGRES_USER: learning_hub
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: learning_hub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U learning_hub -d learning_hub"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm run audit:prod
+
+      - name: Build image
+        run: |
+          docker build \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$SOURCE_SHA" \
+            --tag "$IMAGE_NAME:sha-$SOURCE_SHA" \
+            .
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE_NAME }}:sha-${{ env.SOURCE_SHA }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Start gateway container
+        run: |
+          docker run --detach \
+            --name gateway \
+            --network host \
+            --env PORT=3000 \
+            --env DB_HOST=127.0.0.1 \
+            --env DB_PORT=5432 \
+            --env DB_USERNAME=learning_hub \
+            --env DB_PASSWORD=ci_password \
+            --env DB_DATABASE=learning_hub \
+            --env DB_SSL_MODE=disable \
+            --env ENABLE_PRIVATE_FEATURES=false \
+            "$IMAGE_NAME:sha-$SOURCE_SHA"
+
+      - name: Wait for gateway health endpoint
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error \
+              --connect-timeout 2 \
+              --max-time 3 \
+              http://127.0.0.1:3000/api/v1/health; then
+              echo
+              echo "Gateway startup check passed."
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "::error::Gateway did not become healthy."
+          exit 1
+
+      - name: Show container logs
+        if: always()
+        run: docker logs gateway || true
+
+      - name: Log in to GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GH_TOKEN" |
+            docker login ghcr.io \
+              --username "$GITHUB_ACTOR" \
+              --password-stdin
+
+      - name: Push SHA, version, and prod tags
+        run: |
+          docker push "$IMAGE_NAME:sha-$SOURCE_SHA"
+          docker tag "$IMAGE_NAME:sha-$SOURCE_SHA" "$IMAGE_NAME:prod"
+          docker push "$IMAGE_NAME:prod"
+
+      - name: Remove gateway container
+        if: always()
+        run: docker rm --force gateway || true

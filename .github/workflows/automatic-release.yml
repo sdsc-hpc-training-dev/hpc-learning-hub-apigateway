@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       source-sha: ${{ steps.release.outputs.source-sha }}
+      version: ${{ steps.release.outputs.version }}
     env:
       GH_TOKEN: ${{ github.token }}
       COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
@@ -32,6 +33,7 @@ jobs:
             exit 1
           fi
 
+          echo "version=$version" >> "$GITHUB_OUTPUT"
           branch="release/v$version"
           if existing_sha=$(gh api "/repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha' 2>/dev/null); then
             echo "::notice::$branch already exists"
@@ -51,6 +53,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: ./.github/workflows/automatic-image.yml
+    uses: ./.github/workflows/automatic-dev-image.yml
     with:
       source-sha: ${{ needs.create-branch.outputs.source-sha }}
+      version: ${{ needs.create-branch.outputs.version }}
