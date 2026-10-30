@@ -67,6 +67,7 @@ describe('DatabaseModule configuration', () => {
       ssl: false,
       uuidExtension: 'pgcrypto',
       autoLoadEntities: true,
+      installExtensions: false,
       synchronize: false,
       dropSchema: false,
     });

@@ -77,7 +77,7 @@ export class TrainingLibraryRepository {
           .addSelect(
             filters.searchMode === 'phrase'
               ? `CASE WHEN lower(btrim(material.title)) = lower(:search) THEN 3 WHEN regexp_replace(material.title, '\\s+', ' ', 'g') ILIKE :searchPattern THEN 2 ELSE 1 END`
-              : `ts_rank_cd(to_tsvector('simple', coalesce(material.title, '') || ' ' || coalesce(material.description, '')), websearch_to_tsquery('simple', :search))`,
+              : `GREATEST(ts_rank_cd(to_tsvector('simple', coalesce(material.title, '') || ' ' || coalesce(material.description, '')), websearch_to_tsquery('simple', :search)), 0.001)`,
             'search_relevance',
           )
           .addOrderBy('search_relevance', 'DESC');
