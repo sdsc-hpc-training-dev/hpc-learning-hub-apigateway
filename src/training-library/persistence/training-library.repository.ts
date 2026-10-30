@@ -60,7 +60,15 @@ export class TrainingLibraryRepository {
     query: SelectQueryBuilder<TrainingMaterial>,
     filters: MaterialFilters,
   ): void {
-    if (filters.sort !== 'title') {
+    if (filters.sort === 'date_asc' || filters.sort === 'date_desc') {
+      query
+        .addSelect(LATEST_EVENT_DATE_SQL, 'latest_event_date')
+        .orderBy(
+          'latest_event_date',
+          filters.sort === 'date_asc' ? 'ASC' : 'DESC',
+          'NULLS LAST',
+        );
+    } else if (filters.sort !== 'title') {
       query
         .addSelect(RESOURCE_TIER_SQL, 'resource_tier')
         .orderBy('resource_tier', 'DESC');
@@ -69,7 +77,27 @@ export class TrainingLibraryRepository {
           .addSelect(
             filters.searchMode === 'phrase'
               ? `CASE WHEN lower(btrim(material.title)) = lower(:search) THEN 3 WHEN regexp_replace(material.title, '\\s+', ' ', 'g') ILIKE :searchPattern THEN 2 ELSE 1 END`
-              : `ts_rank_cd(to_tsvector('simple', coalesce(material.title, '') || ' ' || coalesce(material.description, '')), websearch_to_tsquery('simple', :search))`,
+              : `GREATEST(ts_rank_cd(to_tsvector('simple', coalesce(material.title, '') || ' ' || coalesce(material.description, '')), websearch_to_tsquery('simple', :search)), 0.001)`,
+            'search_relevance',
+          )
+          .addOrderBy('search_relevance', 'DESC');
+      }
+      if (filters.terms?.length) {
+        const titleMatches = filters.terms
+          .map(
+            (_, index) =>
+              `regexp_replace(coalesce(material.title, ''), '\\s+', ' ', 'g') ILIKE :term_${index}_pattern ESCAPE '\\'`,
+          )
+          .join(' AND ');
+        const descriptionMatches = filters.terms
+          .map(
+            (_, index) =>
+              `regexp_replace(coalesce(material.description, ''), '\\s+', ' ', 'g') ILIKE :term_${index}_pattern ESCAPE '\\'`,
+          )
+          .join(' AND ');
+        query
+          .addSelect(
+            `CASE WHEN ${titleMatches} THEN 3 WHEN ${descriptionMatches} THEN 2 ELSE 1 END`,
             'search_relevance',
           )
           .addOrderBy('search_relevance', 'DESC');
@@ -180,14 +208,15 @@ export class TrainingLibraryRepository {
     if (filters.search) {
       query.andWhere(
         filters.searchMode === 'phrase'
-          ? `(regexp_replace(coalesce(material.title, ''), '\\s+', ' ', 'g') ILIKE :searchPattern OR regexp_replace(coalesce(material.description, ''), '\\s+', ' ', 'g') ILIKE :searchPattern)`
-          : `to_tsvector('simple', coalesce(material.title, '') || ' ' || coalesce(material.description, '')) @@ websearch_to_tsquery('simple', :search)`,
+          ? `(regexp_replace(coalesce(material.title, ''), '\\s+', ' ', 'g') ILIKE :searchPattern OR regexp_replace(coalesce(material.description, ''), '\\s+', ' ', 'g') ILIKE :searchPattern OR ${this.legacyMetadataSearch('ILIKE :searchPattern')})`
+          : `(to_tsvector('simple', coalesce(material.title, '') || ' ' || coalesce(material.description, '')) @@ websearch_to_tsquery('simple', :search) OR ${this.legacyMetadataSearch("@@ websearch_to_tsquery('simple', :search)")})`,
         {
           search: filters.search,
           searchPattern: `%${filters.search.replace(/\s+/g, ' ').replace(/[\\%_]/g, '\\$&')}%`,
         },
       );
     }
+    this.addTermFilters(query, filters.terms, snapshotId);
     if (filters.date) {
       query.andWhere(
         `EXISTS (SELECT 1 FROM event_materials em JOIN event_editions event ON event.id = em.event_edition_id WHERE em.material_id = material.id AND em.snapshot_id = :snapshotId AND event.snapshot_id = :snapshotId AND CAST(event.start_at AT TIME ZONE 'UTC' AS date) = CAST(:date AS date))`,
@@ -195,6 +224,41 @@ export class TrainingLibraryRepository {
       );
     }
     this.applyRelationshipFilters(query, filters, snapshotId);
+  }
+
+  private legacyMetadataSearch(operator: string): string {
+    const match = (column: string) =>
+      `to_tsvector('simple', coalesce(${column}, '')) ${operator}`;
+    const phraseMatch = (column: string) => `${column} ${operator}`;
+    const expression = operator.startsWith('ILIKE') ? phraseMatch : match;
+    return [
+      `EXISTS (SELECT 1 FROM material_topics mt JOIN topics item ON item.id = mt.topic_id AND item.snapshot_id = :snapshotId WHERE mt.material_id = material.id AND mt.snapshot_id = :snapshotId AND (${expression('item.name')} OR EXISTS (SELECT 1 FROM topic_aliases alias WHERE alias.topic_id = item.id AND ${expression('alias.alias')})))`,
+      `EXISTS (SELECT 1 FROM material_tools mt JOIN tools item ON item.id = mt.tool_id AND item.snapshot_id = :snapshotId WHERE mt.material_id = material.id AND mt.snapshot_id = :snapshotId AND (${expression('item.name')} OR EXISTS (SELECT 1 FROM tool_aliases alias WHERE alias.tool_id = item.id AND ${expression('alias.alias')})))`,
+      `EXISTS (SELECT 1 FROM material_systems ms JOIN systems item ON item.id = ms.system_id AND item.snapshot_id = :snapshotId WHERE ms.material_id = material.id AND ms.snapshot_id = :snapshotId AND (${expression('item.name')} OR EXISTS (SELECT 1 FROM system_aliases alias WHERE alias.system_id = item.id AND ${expression('alias.alias')})))`,
+      `EXISTS (SELECT 1 FROM event_materials em JOIN event_series_editions ese ON ese.event_edition_id = em.event_edition_id AND ese.snapshot_id = :snapshotId JOIN event_series item ON item.id = ese.event_series_id AND item.snapshot_id = :snapshotId WHERE em.material_id = material.id AND em.snapshot_id = :snapshotId AND (${expression('item.name')} OR EXISTS (SELECT 1 FROM event_series_aliases alias WHERE alias.event_series_id = item.id AND ${expression('alias.alias')})))`,
+    ].join(' OR ');
+  }
+
+  private addTermFilters(
+    query: SelectQueryBuilder<TrainingMaterial>,
+    terms: string[] | undefined,
+    snapshotId: string,
+  ): void {
+    if (!terms?.length) return;
+    for (const [index, term] of terms.entries()) {
+      const parameter = `term_${index}_pattern`;
+      query.andWhere(
+        `(
+          regexp_replace(coalesce(material.title, ''), '\\s+', ' ', 'g') ILIKE :${parameter} ESCAPE '\\'
+          OR regexp_replace(coalesce(material.description, ''), '\\s+', ' ', 'g') ILIKE :${parameter} ESCAPE '\\'
+          OR EXISTS (SELECT 1 FROM material_topics mt JOIN topics topic ON topic.id = mt.topic_id AND topic.snapshot_id = :snapshotId WHERE mt.material_id = material.id AND mt.snapshot_id = :snapshotId AND (regexp_replace(coalesce(topic.name, ''), '\\s+', ' ', 'g') ILIKE :${parameter} ESCAPE '\\' OR EXISTS (SELECT 1 FROM topic_aliases alias WHERE alias.topic_id = topic.id AND regexp_replace(coalesce(alias.alias, ''), '\\s+', ' ', 'g') ILIKE :${parameter} ESCAPE '\\')))
+          OR EXISTS (SELECT 1 FROM material_tools mt JOIN tools tool ON tool.id = mt.tool_id AND tool.snapshot_id = :snapshotId WHERE mt.material_id = material.id AND mt.snapshot_id = :snapshotId AND (regexp_replace(coalesce(tool.name, ''), '\\s+', ' ', 'g') ILIKE :${parameter} ESCAPE '\\' OR EXISTS (SELECT 1 FROM tool_aliases alias WHERE alias.tool_id = tool.id AND regexp_replace(coalesce(alias.alias, ''), '\\s+', ' ', 'g') ILIKE :${parameter} ESCAPE '\\')))
+          OR EXISTS (SELECT 1 FROM material_systems ms JOIN systems system ON system.id = ms.system_id AND system.snapshot_id = :snapshotId WHERE ms.material_id = material.id AND ms.snapshot_id = :snapshotId AND (regexp_replace(coalesce(system.name, ''), '\\s+', ' ', 'g') ILIKE :${parameter} ESCAPE '\\' OR EXISTS (SELECT 1 FROM system_aliases alias WHERE alias.system_id = system.id AND regexp_replace(coalesce(alias.alias, ''), '\\s+', ' ', 'g') ILIKE :${parameter} ESCAPE '\\')))
+          OR EXISTS (SELECT 1 FROM event_materials em JOIN event_series_editions ese ON ese.event_edition_id = em.event_edition_id AND ese.snapshot_id = :snapshotId JOIN event_series series ON series.id = ese.event_series_id AND series.snapshot_id = :snapshotId WHERE em.material_id = material.id AND em.snapshot_id = :snapshotId AND (regexp_replace(coalesce(series.name, ''), '\\s+', ' ', 'g') ILIKE :${parameter} ESCAPE '\\' OR EXISTS (SELECT 1 FROM event_series_aliases alias WHERE alias.event_series_id = series.id AND regexp_replace(coalesce(alias.alias, ''), '\\s+', ' ', 'g') ILIKE :${parameter} ESCAPE '\\')))
+        )`,
+        { [parameter]: `%${term.replace(/[\\%_]/g, '\\$&')}%`, snapshotId },
+      );
+    }
   }
 
   private applyRelationshipFilters(

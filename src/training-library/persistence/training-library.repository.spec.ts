@@ -1,10 +1,13 @@
 /* eslint-disable max-lines-per-function -- Integration fixture setup and assertions stay together for review. */
-import { DataSource } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { persistenceEntities } from '../../database/entities/persistence.entities';
 import { TrainingLibraryRepository } from './training-library.repository';
 import { ActiveSnapshotQuery } from './active-snapshot.query';
 import { TrainingLibraryService } from '../training-library.service';
 import { ResourceType } from '../../database/entities/persistence.enums';
+import { TrainingMaterial } from '../../database/entities/catalog.entity';
+
+jest.setTimeout(30_000);
 
 // Opt-in, disposable LOCAL database only. No cloud credentials are accepted.
 const integration = process.env.TRAINING_LIBRARY_TEST_PORT
@@ -31,16 +34,21 @@ integration('Training Library PostgreSQL ranking and pagination', () => {
     'material_tools',
     'material_systems',
     'material_instructors',
+    'topic_aliases',
+    'tool_aliases',
+    'system_aliases',
+    'event_series_aliases',
   ];
 
   beforeAll(async () => {
     ds = new DataSource({
       type: 'postgres',
-      host: '127.0.0.1',
+      host: process.env.TRAINING_LIBRARY_TEST_HOST ?? '127.0.0.1',
       port: Number(process.env.TRAINING_LIBRARY_TEST_PORT),
-      username: 'postgres',
-      password: 'local-ranking-test',
-      database: 'ranking_test',
+      username: process.env.TRAINING_LIBRARY_TEST_USERNAME ?? 'postgres',
+      password:
+        process.env.TRAINING_LIBRARY_TEST_PASSWORD ?? 'local-ranking-test',
+      database: process.env.TRAINING_LIBRARY_TEST_DATABASE ?? 'ranking_test',
       entities: [...persistenceEntities],
       schema,
       extra: { options: `-c search_path=${schema}` },
@@ -360,5 +368,104 @@ integration('Training Library PostgreSQL ranking and pagination', () => {
         await repository.findMaterials({ sort: 'title', page: 1, pageSize: 10 })
       ).items.map((item) => item.material.id),
     ).toEqual(['literal', 'description', 'exact', 'title']);
+  });
+
+  it('requires every repeated phrase while matching active metadata aliases without duplicate rows', async () => {
+    await material('metadata-match', { title: 'Generic workshop' });
+    await material('title-match', { title: 'GPU queue guide' });
+    await material('partial-match', { title: 'GPU overview' });
+    await ds.query(
+      "INSERT INTO topics (id, snapshot_id, name) VALUES ('gpu-topic', 's', 'Accelerators')",
+    );
+    await ds.query(
+      "INSERT INTO topic_aliases (alias, topic_id) VALUES ('GPU', 'gpu-topic')",
+    );
+    await ds.query(
+      "INSERT INTO material_topics (relationship_id, snapshot_id, material_id, topic_id) VALUES ('metadata-relationship', 's', 'metadata-match', 'gpu-topic')",
+    );
+    await ds.query(
+      "INSERT INTO tools (id, snapshot_id, name) VALUES ('queue-tool', 's', 'Queue manager')",
+    );
+    await ds.query(
+      "INSERT INTO tool_aliases (alias, tool_id) VALUES ('queue', 'queue-tool')",
+    );
+    await ds.query(
+      "INSERT INTO material_tools (relationship_id, snapshot_id, material_id, tool_id) VALUES ('tool-relationship', 's', 'metadata-match', 'queue-tool')",
+    );
+
+    const results = await repository.findMaterials({
+      terms: ['GPU', 'queue'],
+      page: 1,
+      pageSize: 10,
+    });
+    expect(results.total).toBe(2);
+    expect(results.items.map((item) => item.material.id)).toEqual([
+      'title-match',
+      'metadata-match',
+    ]);
+    expect(
+      (
+        await repository.findMaterials({
+          search: 'GPU',
+          searchMode: 'phrase',
+          page: 1,
+          pageSize: 10,
+        })
+      ).items.map((item) => item.material.id),
+    ).toEqual(expect.arrayContaining(['metadata-match', 'title-match']));
+
+    const query = ds
+      .getRepository(TrainingMaterial)
+      .createQueryBuilder('material')
+      .where('material.snapshotId = :snapshotId', { snapshotId: 's' });
+    const internal = repository as unknown as {
+      applyFilters(
+        builder: SelectQueryBuilder<TrainingMaterial>,
+        filters: { search: string; page: number; pageSize: number },
+        snapshotId: string,
+      ): void;
+      applyRanking(
+        builder: SelectQueryBuilder<TrainingMaterial>,
+        filters: { search: string; page: number; pageSize: number },
+      ): void;
+    };
+    const filters = { search: 'GPU', page: 1, pageSize: 10 };
+    internal.applyFilters(query, filters, 's');
+    internal.applyRanking(query, filters);
+    const rows = await query.getRawMany<{
+      material_id: string;
+      search_relevance: string;
+    }>();
+    const metadataOnly = rows.find(
+      (row) => row.material_id === 'metadata-match',
+    );
+    expect(Number(metadataOnly?.search_relevance)).toBeGreaterThan(0);
+  });
+
+  it('sorts by the latest associated event date with null dates last', async () => {
+    await material('old', { title: 'Old', date: '2024-01-01' });
+    await material('new', { title: 'New', date: '2026-01-01' });
+    await material('none', { title: 'None', date: null });
+
+    const ascending = await repository.findMaterials({
+      sort: 'date_asc',
+      page: 1,
+      pageSize: 10,
+    });
+    const descending = await repository.findMaterials({
+      sort: 'date_desc',
+      page: 1,
+      pageSize: 10,
+    });
+    expect(ascending.items.map((item) => item.material.id)).toEqual([
+      'old',
+      'new',
+      'none',
+    ]);
+    expect(descending.items.map((item) => item.material.id)).toEqual([
+      'new',
+      'old',
+      'none',
+    ]);
   });
 });
