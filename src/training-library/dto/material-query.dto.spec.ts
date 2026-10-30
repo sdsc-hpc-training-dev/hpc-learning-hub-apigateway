@@ -29,6 +29,21 @@ describe('MaterialQueryDto', () => {
     );
     expect(errors.map((error) => error.property)).toContain('sort');
   });
+  it('accepts scalar and repeated terms plus date sorts', async () => {
+    const scalar = plainToInstance(MaterialQueryDto, {
+      term: ' Slurm ',
+      sort: 'date_desc',
+    });
+    const repeated = plainToInstance(MaterialQueryDto, {
+      term: ['Slurm', 'GPU'],
+      sort: 'date_asc',
+    });
+
+    await expect(validate(scalar)).resolves.toEqual([]);
+    await expect(validate(repeated)).resolves.toEqual([]);
+    expect(scalar.term).toEqual([' Slurm ']);
+    expect(repeated.term).toEqual(['Slurm', 'GPU']);
+  });
   it('transforms accepted pagination and resource-type query values', async () => {
     const query = plainToInstance(MaterialQueryDto, {
       search: 'slurm',

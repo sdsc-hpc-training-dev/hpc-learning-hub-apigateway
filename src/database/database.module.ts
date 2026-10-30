@@ -40,6 +40,7 @@ function parseDatabaseSslMode(
         ssl: parseDatabaseSslMode(config.get<string>('DB_SSL_MODE', 'disable')),
         uuidExtension: 'pgcrypto',
         autoLoadEntities: true,
+        installExtensions: false,
         synchronize: false,
         dropSchema: false,
       }),

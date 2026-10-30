@@ -42,6 +42,7 @@ import {
 } from './personal-learning-path.entity';
 import { User } from './user.entity';
 import { Bookmark } from './bookmark.entity';
+import { SiteFeedback } from './site-feedback.entity';
 
 export const persistenceEntities = [
   User,
@@ -51,6 +52,7 @@ export const persistenceEntities = [
   PersonalLearningPath,
   PersonalPathItem,
   Bookmark,
+  SiteFeedback,
   CatalogSnapshot,
   SnapshotImportRun,
   SnapshotImportError,
