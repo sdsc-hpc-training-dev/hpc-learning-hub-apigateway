@@ -1,10 +1,11 @@
 /* eslint-disable max-lines-per-function -- Integration fixture setup and assertions stay together for review. */
-import { DataSource } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { persistenceEntities } from '../../database/entities/persistence.entities';
 import { TrainingLibraryRepository } from './training-library.repository';
 import { ActiveSnapshotQuery } from './active-snapshot.query';
 import { TrainingLibraryService } from '../training-library.service';
 import { ResourceType } from '../../database/entities/persistence.enums';
+import { TrainingMaterial } from '../../database/entities/catalog.entity';
 
 jest.setTimeout(30_000);
 
@@ -412,6 +413,33 @@ integration('Training Library PostgreSQL ranking and pagination', () => {
         })
       ).items.map((item) => item.material.id),
     ).toEqual(expect.arrayContaining(['metadata-match', 'title-match']));
+
+    const query = ds
+      .getRepository(TrainingMaterial)
+      .createQueryBuilder('material')
+      .where('material.snapshotId = :snapshotId', { snapshotId: 's' });
+    const internal = repository as unknown as {
+      applyFilters(
+        builder: SelectQueryBuilder<TrainingMaterial>,
+        filters: { search: string; page: number; pageSize: number },
+        snapshotId: string,
+      ): void;
+      applyRanking(
+        builder: SelectQueryBuilder<TrainingMaterial>,
+        filters: { search: string; page: number; pageSize: number },
+      ): void;
+    };
+    const filters = { search: 'GPU', page: 1, pageSize: 10 };
+    internal.applyFilters(query, filters, 's');
+    internal.applyRanking(query, filters);
+    const rows = await query.getRawMany<{
+      material_id: string;
+      search_relevance: string;
+    }>();
+    const metadataOnly = rows.find(
+      (row) => row.material_id === 'metadata-match',
+    );
+    expect(Number(metadataOnly?.search_relevance)).toBeGreaterThan(0);
   });
 
   it('sorts by the latest associated event date with null dates last', async () => {

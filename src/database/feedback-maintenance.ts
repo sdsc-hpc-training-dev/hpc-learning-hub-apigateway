@@ -1,5 +1,6 @@
-import type { createWriteStream } from 'node:fs';
 import { once } from 'node:events';
+import { open } from 'node:fs/promises';
+import { isAbsolute, resolve } from 'node:path';
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
 import {
@@ -9,7 +10,7 @@ import {
 } from './data-source';
 import { CreateSiteFeedback1791561600000 } from './migrations/1791561600000-CreateSiteFeedback';
 
-type FeedbackRow = {
+export type FeedbackRow = {
   id: string;
   created_at: Date;
   survey_version: number;
@@ -19,22 +20,40 @@ type FeedbackRow = {
   improvements: string | null;
 };
 
-function csvCell(value: unknown): string {
-  let text = '';
-  if (typeof value === 'string') text = value;
-  else if (
-    typeof value === 'number' ||
-    typeof value === 'boolean' ||
-    typeof value === 'bigint'
-  ) {
-    text = `${value}`;
-  } else if (typeof value === 'symbol') {
-    text = value.description ?? '';
-  } else if (typeof value === 'object' && value !== null) {
-    text = JSON.stringify(value) ?? '';
-  }
+type CsvScalar = string | number | boolean | Date | null;
+
+export function csvCell(value: CsvScalar): string {
+  const text =
+    value === null
+      ? ''
+      : value instanceof Date
+        ? value.toISOString()
+        : `${value}`;
   const safe = /^[\t\r\n ]*[=+\-@]/.test(text) ? `'${text}` : text;
   return `"${safe.replaceAll('"', '""')}"`;
+}
+
+export function feedbackCsvLine(row: FeedbackRow): string {
+  return [
+    row.id,
+    row.created_at,
+    row.survey_version,
+    row.rating,
+    row.found_what_needed,
+    row.worked_well,
+    row.improvements,
+  ]
+    .map(csvCell)
+    .join(',');
+}
+
+export function trustedExportPath(destination: string): string {
+  if (!isAbsolute(destination)) {
+    throw new Error(
+      'Export destination must be an absolute operator-supplied path',
+    );
+  }
+  return resolve(destination);
 }
 
 function usage(): never {
@@ -43,7 +62,7 @@ function usage(): never {
   );
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const [command, destination] = process.argv.slice(2);
   if (!['migrate', 'export', 'purge'].includes(command ?? '')) usage();
   if (command === 'export' && !destination) usage();
@@ -95,20 +114,15 @@ async function main(): Promise<void> {
       SELECT id, created_at, survey_version, rating, found_what_needed, worked_well, improvements
       FROM site_feedback ORDER BY created_at ASC, id ASC
     `)) as { rows: FeedbackRow[] };
-    const fsModule = (await import('node:fs')) as Record<string, unknown>;
-    const openCsvFile = fsModule[
-      'createWriteStream'
-    ] as typeof createWriteStream;
-    const stream = openCsvFile(destination!, {
+    const file = await open(trustedExportPath(destination!), 'wx', 0o600);
+    const stream = file.createWriteStream({
       encoding: 'utf8',
-      flags: 'wx',
-      mode: 0o600,
     });
     stream.write(
       'id,created_at,survey_version,rating,found_what_needed,worked_well,improvements\n',
     );
     for (const row of result.rows) {
-      if (!stream.write(Object.values(row).map(csvCell).join(',') + '\n')) {
+      if (!stream.write(feedbackCsvLine(row) + '\n')) {
         await once(stream, 'drain');
       }
     }
@@ -119,4 +133,4 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+if (require.main === module) void main();
