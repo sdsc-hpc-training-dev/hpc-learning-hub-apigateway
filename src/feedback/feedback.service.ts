@@ -57,7 +57,10 @@ export class FeedbackService {
     this.acceptedInWindow += 1;
   }
 
-  private optionalText(value: string | null | undefined, field: string): string | null {
+  private optionalText(
+    value: string | null | undefined,
+    field: string,
+  ): string | null {
     if (value === undefined || value === null) return null;
     if (value.length > MAX_TEXT_CODE_UNITS) {
       throw new BadRequestException(`${field} must be at most 500 characters`);

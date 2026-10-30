@@ -35,7 +35,10 @@ describe('TrainingLibraryService query normalization', () => {
   });
 
   it.each([
-    ['more than ten phrases', Array.from({ length: 11 }, (_, index) => `t${index}`)],
+    [
+      'more than ten phrases',
+      Array.from({ length: 11 }, (_, index) => `t${index}`),
+    ],
     ['a phrase longer than 100 characters', ['x'.repeat(101)]],
   ])('rejects %s', async (_, term) => {
     await expect(service.findMaterials({ term })).rejects.toBeInstanceOf(

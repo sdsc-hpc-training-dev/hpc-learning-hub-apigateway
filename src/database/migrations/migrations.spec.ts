@@ -228,11 +228,11 @@ describe('site feedback migration', () => {
       expect.stringContaining('CREATE TABLE "site_feedback"'),
       'CREATE INDEX "IDX_site_feedback_created_at" ON "site_feedback" ("created_at")',
     ]);
+    expect(sql[0]).toEqual(expect.stringContaining('"rating" BETWEEN 1 AND 5'));
     expect(sql[0]).toEqual(
-      expect.stringContaining('"rating" BETWEEN 1 AND 5'),
-    );
-    expect(sql[0]).toEqual(
-      expect.stringContaining('"found_what_needed" IN (\'yes\', \'partly\', \'no\', \'just_browsing\')'),
+      expect.stringContaining(
+        "\"found_what_needed\" IN ('yes', 'partly', 'no', 'just_browsing')",
+      ),
     );
   });
 

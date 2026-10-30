@@ -2,7 +2,11 @@ import { createWriteStream } from 'node:fs';
 import { once } from 'node:events';
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
-import { parseDatabasePort, parseDatabaseSslMode, requireDatabaseSetting } from './data-source';
+import {
+  parseDatabasePort,
+  parseDatabaseSslMode,
+  requireDatabaseSetting,
+} from './data-source';
 import { CreateSiteFeedback1791561600000 } from './migrations/1791561600000-CreateSiteFeedback';
 
 type FeedbackRow = {
