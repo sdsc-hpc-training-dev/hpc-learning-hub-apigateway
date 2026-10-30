@@ -108,8 +108,16 @@ export class TrainingLibraryService {
   }
 
   private toFilters(query: MaterialQueryDto): MaterialFilters {
+    const search = this.optional(query.search)?.replace(/\s+/g, ' ');
+    const terms = this.terms(query.term);
+    if (search && terms.length > 0) {
+      throw new BadRequestException(
+        'search cannot be combined with nonempty term parameters',
+      );
+    }
     return {
-      search: this.optional(query.search)?.replace(/\s+/g, ' '),
+      search,
+      terms: terms.length > 0 ? terms : undefined,
       searchMode: query.searchMode ?? 'websearch',
       topic: this.optional(query.topic),
       tool: this.optional(query.tool),
@@ -163,6 +171,31 @@ export class TrainingLibraryService {
   private optional(value: string | undefined): string | undefined {
     const normalized = value?.trim();
     return normalized || undefined;
+  }
+
+  private terms(value: string[] | undefined): string[] {
+    if (value === undefined) return [];
+    if (!Array.isArray(value)) {
+      throw new BadRequestException('term must be a string or an array of strings');
+    }
+
+    const unique = new Map<string, string>();
+    for (const term of value) {
+      if (typeof term !== 'string') {
+        throw new BadRequestException('term must be a string or an array of strings');
+      }
+      const normalized = term.trim().replace(/\s+/g, ' ');
+      if (!normalized) continue;
+      if (normalized.length > 100) {
+        throw new BadRequestException('each term must be at most 100 characters');
+      }
+      const key = normalized.toLocaleLowerCase();
+      if (!unique.has(key)) unique.set(key, normalized);
+    }
+    if (unique.size > 10) {
+      throw new BadRequestException('at most 10 nonempty terms are supported');
+    }
+    return [...unique.values()];
   }
 
   private toMaterialResponse(record: MaterialRecord): MaterialResponseDto {

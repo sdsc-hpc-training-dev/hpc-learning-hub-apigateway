@@ -3,6 +3,7 @@ import { EnablePgvector1788856392276 } from './1788856392276-EnablePgvector';
 import { CreateIngestionPersistence1788893479707 } from './1788893479707-CreateIngestionPersistence';
 import { CreateCuratedLearningPaths1789142400000 } from './1789142400000-CreateCuratedLearningPaths';
 import { CreateAuthenticationTables1790723644950 } from './1790723644950-CreateAuthenticationTables';
+import { CreateSiteFeedback1791561600000 } from './1791561600000-CreateSiteFeedback';
 
 interface QueryRunnerStub {
   queries: string[];
@@ -212,5 +213,33 @@ describe('authentication persistence migration', () => {
         'ADD CONSTRAINT "FK_curated_path_items_path" FOREIGN KEY ("path_id")',
       ),
     );
+  });
+});
+
+describe('site feedback migration', () => {
+  it('creates the private append-only feedback table and maintenance index', async () => {
+    const migration = new CreateSiteFeedback1791561600000();
+    const { queries, queryRunner } = queryRunnerStub();
+
+    await migration.up(queryRunner);
+
+    const sql = normalizeStatements(queries);
+    expect(sql).toEqual([
+      expect.stringContaining('CREATE TABLE "site_feedback"'),
+      'CREATE INDEX "IDX_site_feedback_created_at" ON "site_feedback" ("created_at")',
+    ]);
+    expect(sql[0]).toEqual(
+      expect.stringContaining('"rating" BETWEEN 1 AND 5'),
+    );
+    expect(sql[0]).toEqual(
+      expect.stringContaining('"found_what_needed" IN (\'yes\', \'partly\', \'no\', \'just_browsing\')'),
+    );
+  });
+
+  it('removes only the feedback table on rollback', async () => {
+    const migration = new CreateSiteFeedback1791561600000();
+    const { queries, queryRunner } = queryRunnerStub();
+    await migration.down(queryRunner);
+    expect(queries).toEqual(['DROP TABLE "site_feedback"']);
   });
 });

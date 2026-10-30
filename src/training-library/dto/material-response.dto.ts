@@ -42,7 +42,7 @@ export interface MaterialResponseDto {
 }
 
 export interface MaterialPageResponseDto {
-  sort: 'recommended' | 'title';
+  sort: 'recommended' | 'title' | 'date_asc' | 'date_desc';
   rankingVersion: 'recommended-v1';
   items: MaterialResponseDto[];
   page: number;

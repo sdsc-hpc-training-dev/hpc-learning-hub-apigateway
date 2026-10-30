@@ -122,6 +122,22 @@ describe('HttpExceptionFilter', () => {
     );
   });
 
+  it('formats parser body-limit errors without exposing parser details', () => {
+    const { host, response } = hostFor('/api/v1/feedback');
+
+    filter.catch({ type: 'entity.too.large', message: 'internal detail' }, host);
+
+    expect(response.statusCode).toBe(HttpStatus.PAYLOAD_TOO_LARGE);
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        statusCode: HttpStatus.PAYLOAD_TOO_LARGE,
+        error: 'Payload Too Large',
+        message: 'Request body is too large',
+      }),
+    );
+    expect(JSON.stringify(response.body)).not.toContain('internal detail');
+  });
+
   it('hides unexpected error details behind a generic 500 response', () => {
     const { host, response } = hostFor('/api/v1/materials');
 
