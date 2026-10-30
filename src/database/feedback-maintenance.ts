@@ -114,7 +114,10 @@ export async function main(): Promise<void> {
       SELECT id, created_at, survey_version, rating, found_what_needed, worked_well, improvements
       FROM site_feedback ORDER BY created_at ASC, id ASC
     `)) as { rows: FeedbackRow[] };
-    const file = await open(trustedExportPath(destination!), 'wx', 0o600);
+    const exportPath = trustedExportPath(destination!);
+    // The CLI permits a validated absolute, operator-supplied export destination.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    const file = await open(exportPath, 'wx', 0o600);
     const stream = file.createWriteStream({
       encoding: 'utf8',
     });
