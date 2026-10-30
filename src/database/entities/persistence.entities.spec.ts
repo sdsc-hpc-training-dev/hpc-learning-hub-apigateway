@@ -48,6 +48,7 @@ const expectedTables = [
   'people',
   'personal_learning_paths',
   'personal_path_items',
+  'site_feedback',
   'snapshot_import_errors',
   'snapshot_import_runs',
   'system_aliases',
@@ -93,6 +94,29 @@ describe('persistence entity registration', () => {
     expect(instances).toHaveLength(expectedTables.length);
     expect(instances.map((instance) => instance.constructor)).toEqual(
       persistenceEntities,
+    );
+  });
+
+  it('maps anonymous feedback without a catalog or user relation', () => {
+    const feedback = table('site_feedback');
+    const columns = new Map(
+      feedback.columns.map((column) => [column.databaseName, column]),
+    );
+
+    expect([...columns.keys()]).toEqual(
+      expect.arrayContaining([
+        'id',
+        'created_at',
+        'survey_version',
+        'rating',
+        'found_what_needed',
+        'worked_well',
+        'improvements',
+      ]),
+    );
+    expect(feedback.relations).toHaveLength(0);
+    expect(feedback.indices.map((index) => index.givenName)).toContain(
+      'IDX_site_feedback_created_at',
     );
   });
 
