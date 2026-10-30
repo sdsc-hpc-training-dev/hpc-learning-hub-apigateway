@@ -41,11 +41,11 @@ const databaseImports = Reflect.getMetadata(
 ) as unknown as [RootDatabaseConfig, readonly unknown[]];
 const rootDatabaseConfig = databaseImports[0];
 
-describe('DatabaseModule configuration', () => {
-  it('registers all persistence entities with the feature data source', () => {
-    expect(databaseImports[1]).toEqual(persistenceEntities);
-  });
+it('registers all persistence entities with the feature data source', () => {
+  expect(databaseImports[1]).toEqual(persistenceEntities);
+});
 
+describe('DatabaseModule configuration', () => {
   it('builds safe TypeORM options from explicit environment settings', () => {
     const options = rootDatabaseConfig.useFactory(
       configReader({
