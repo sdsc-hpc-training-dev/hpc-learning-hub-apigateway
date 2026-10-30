@@ -56,6 +56,8 @@ describe('TrainingLibraryService query normalization', () => {
       Array.from({ length: 11 }, (_, index) => `t${index}`),
     ],
     ['a phrase longer than 100 characters', ['x'.repeat(101)]],
+    ['a non-array phrase value', 'slurm' as unknown as string[]],
+    ['a non-string phrase item', [123 as unknown as string]],
   ])('rejects %s', async (_, term) => {
     await expect(service.findMaterials({ term })).rejects.toBeInstanceOf(
       BadRequestException,
