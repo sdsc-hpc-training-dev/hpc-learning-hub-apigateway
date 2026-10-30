@@ -22,7 +22,7 @@ export type FeedbackRow = {
 
 type CsvScalar = string | number | boolean | Date | null;
 
-export function csvCell(value: CsvScalar): string {
+function csvCell(value: CsvScalar): string {
   const text =
     value === null
       ? ''
@@ -62,7 +62,7 @@ function usage(): never {
   );
 }
 
-export async function main(): Promise<void> {
+async function main(): Promise<void> {
   const [command, destination] = process.argv.slice(2);
   if (!['migrate', 'export', 'purge'].includes(command ?? '')) usage();
   if (command === 'export' && !destination) usage();
