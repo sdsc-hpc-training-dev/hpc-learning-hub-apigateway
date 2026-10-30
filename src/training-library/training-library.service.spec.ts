@@ -12,6 +12,22 @@ describe('TrainingLibraryService query normalization', () => {
     findMaterials.mockResolvedValue({ items: [], total: 0 });
   });
 
+  it('uses the legacy defaults when no search input is present', async () => {
+    await expect(service.findMaterials({})).resolves.toMatchObject({
+      page: 1,
+      pageSize: 10,
+      sort: 'recommended',
+      total: 0,
+    });
+    expect(findMaterials).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terms: undefined,
+        search: undefined,
+        searchMode: 'websearch',
+      }),
+    );
+  });
+
   it('normalizes, deduplicates, and forwards repeated phrase terms', async () => {
     await service.findMaterials({
       term: [' Slurm   GPU ', 'slurm gpu', '', 'Queue'],
