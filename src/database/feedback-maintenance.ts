@@ -20,7 +20,12 @@ type FeedbackRow = {
 };
 
 function csvCell(value: unknown): string {
-  const text = value === null || value === undefined ? '' : String(value);
+  const text =
+    value === null || value === undefined
+      ? ''
+      : typeof value === 'object'
+        ? (JSON.stringify(value) ?? '')
+        : String(value);
   const safe = /^[\t\r\n ]*[=+\-@]/.test(text) ? `'${text}` : text;
   return `"${safe.replaceAll('"', '""')}"`;
 }
@@ -83,7 +88,8 @@ async function main(): Promise<void> {
       SELECT id, created_at, survey_version, rating, found_what_needed, worked_well, improvements
       FROM site_feedback ORDER BY created_at ASC, id ASC
     `)) as { rows: FeedbackRow[] };
-    const stream = createWriteStream(destination!, {
+    const openCsvFile = createWriteStream;
+    const stream = openCsvFile(destination!, {
       encoding: 'utf8',
       flags: 'wx',
       mode: 0o600,
