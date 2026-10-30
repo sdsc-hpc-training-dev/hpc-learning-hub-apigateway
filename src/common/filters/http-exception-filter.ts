@@ -2,6 +2,7 @@ import {
   Catch,
   ExceptionFilter,
   HttpException,
+  HttpStatus,
   ArgumentsHost,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
@@ -36,6 +37,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
         error: error,
         timestamp: new Date().toISOString(),
         message: message,
+        path: request.url,
+      });
+    } else if (
+      typeof exception === 'object' &&
+      exception !== null &&
+      (exception as { type?: unknown }).type === 'entity.too.large'
+    ) {
+      response.status(HttpStatus.PAYLOAD_TOO_LARGE).json({
+        statusCode: HttpStatus.PAYLOAD_TOO_LARGE,
+        error: 'Payload Too Large',
+        timestamp: new Date().toISOString(),
+        message: 'Request body is too large',
         path: request.url,
       });
     } else {

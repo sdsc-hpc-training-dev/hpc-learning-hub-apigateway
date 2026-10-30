@@ -6,9 +6,11 @@ import {
   IsOptional,
   IsString,
   IsDateString,
+  IsArray,
   Matches,
   Max,
   Min,
+  ArrayMaxSize,
 } from 'class-validator';
 import { ResourceType } from '../../database/entities/persistence.enums';
 
@@ -18,8 +20,8 @@ export class MaterialQueryDto {
   searchMode?: 'websearch' | 'phrase';
 
   @IsOptional()
-  @IsIn(['recommended', 'title'])
-  sort?: 'recommended' | 'title';
+  @IsIn(['recommended', 'title', 'date_asc', 'date_desc'])
+  sort?: 'recommended' | 'title' | 'date_asc' | 'date_desc';
 
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
@@ -29,6 +31,15 @@ export class MaterialQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? [value] : value,
+  )
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  term?: string[];
 
   @IsOptional()
   @IsString()
