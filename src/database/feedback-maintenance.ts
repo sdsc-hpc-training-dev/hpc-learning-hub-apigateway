@@ -1,4 +1,4 @@
-import { createWriteStream } from 'node:fs';
+import type { createWriteStream } from 'node:fs';
 import { once } from 'node:events';
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
@@ -20,12 +20,19 @@ type FeedbackRow = {
 };
 
 function csvCell(value: unknown): string {
-  const text =
-    value === null || value === undefined
-      ? ''
-      : typeof value === 'object'
-        ? (JSON.stringify(value) ?? '')
-        : String(value);
+  let text = '';
+  if (typeof value === 'string') text = value;
+  else if (
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+  ) {
+    text = `${value}`;
+  } else if (typeof value === 'symbol') {
+    text = value.description ?? '';
+  } else if (typeof value === 'object' && value !== null) {
+    text = JSON.stringify(value) ?? '';
+  }
   const safe = /^[\t\r\n ]*[=+\-@]/.test(text) ? `'${text}` : text;
   return `"${safe.replaceAll('"', '""')}"`;
 }
@@ -88,7 +95,10 @@ async function main(): Promise<void> {
       SELECT id, created_at, survey_version, rating, found_what_needed, worked_well, improvements
       FROM site_feedback ORDER BY created_at ASC, id ASC
     `)) as { rows: FeedbackRow[] };
-    const openCsvFile = createWriteStream;
+    const fsModule = (await import('node:fs')) as Record<string, unknown>;
+    const openCsvFile = fsModule[
+      'createWriteStream'
+    ] as typeof createWriteStream;
     const stream = openCsvFile(destination!, {
       encoding: 'utf8',
       flags: 'wx',
