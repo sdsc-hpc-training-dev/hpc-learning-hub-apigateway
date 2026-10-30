@@ -176,18 +176,24 @@ export class TrainingLibraryService {
   private terms(value: string[] | undefined): string[] {
     if (value === undefined) return [];
     if (!Array.isArray(value)) {
-      throw new BadRequestException('term must be a string or an array of strings');
+      throw new BadRequestException(
+        'term must be a string or an array of strings',
+      );
     }
 
     const unique = new Map<string, string>();
     for (const term of value) {
       if (typeof term !== 'string') {
-        throw new BadRequestException('term must be a string or an array of strings');
+        throw new BadRequestException(
+          'term must be a string or an array of strings',
+        );
       }
       const normalized = term.trim().replace(/\s+/g, ' ');
       if (!normalized) continue;
       if (normalized.length > 100) {
-        throw new BadRequestException('each term must be at most 100 characters');
+        throw new BadRequestException(
+          'each term must be at most 100 characters',
+        );
       }
       const key = normalized.toLocaleLowerCase();
       if (!unique.has(key)) unique.set(key, normalized);

@@ -125,7 +125,10 @@ describe('HttpExceptionFilter', () => {
   it('formats parser body-limit errors without exposing parser details', () => {
     const { host, response } = hostFor('/api/v1/feedback');
 
-    filter.catch({ type: 'entity.too.large', message: 'internal detail' }, host);
+    filter.catch(
+      { type: 'entity.too.large', message: 'internal detail' },
+      host,
+    );
 
     expect(response.statusCode).toBe(HttpStatus.PAYLOAD_TOO_LARGE);
     expect(response.body).toEqual(
