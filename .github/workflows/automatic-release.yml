@@ -52,7 +52,7 @@ jobs:
     name: Build and publish release image
     needs: create-branch
     permissions:
-      contents: read
+      contents: write
       packages: write
     uses: ./.github/workflows/automatic-dev-image.yml
     with:

@@ -32,6 +32,8 @@ jobs:
   run-checks-and-push-container:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     permissions:
       contents: read
       packages: write
@@ -54,6 +56,7 @@ jobs:
 
     steps:
       - name: Determine image version
+        id: version
         env:
           INPUT_VERSION: ${{ inputs.version }}
         shell: bash
@@ -69,6 +72,7 @@ jobs:
           fi
 
           echo "IMAGE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -163,3 +167,13 @@ jobs:
       - name: Remove gateway container
         if: always()
         run: docker rm --force gateway || true
+
+  publish-manifest:
+    name: Publish paired release manifest
+    needs: run-checks-and-push-container
+    permissions:
+      contents: write
+      packages: read
+    uses: ./.github/workflows/release-manifest.yml
+    with:
+      version: ${{ needs.run-checks-and-push-container.outputs.version }}
