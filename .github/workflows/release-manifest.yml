@@ -1,0 +1,144 @@
+name: Publish Release Manifest
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release number, for example 0.0.1 (looks up 0.0.1-dev images)
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: Release number, for example 0.0.1
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: read
+
+concurrency:
+  group: release-manifest-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  publish-manifest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+      GATEWAY_IMAGE: ghcr.io/sdsc-hpc-training-dev/hpc-learning-hub-apigateway
+      FRONTEND_IMAGE: ghcr.io/sdsc-hpc-training-dev/hpc-learning-hub-frontend
+
+    steps:
+      - name: Validate release number
+        shell: bash
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Use a release number like 0.0.1."
+            exit 1
+          fi
+
+      # Grant this repository Actions read access to the frontend GHCR package
+      # if it is private. The token does not automatically read other packages.
+      - name: Log in to GHCR
+        run: |
+          printf '%s' "$GH_TOKEN" |
+            docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Find both published images
+        id: images
+        shell: bash
+        run: |
+          tag="$VERSION-dev"
+          found=true
+
+          for component in gateway frontend; do
+            if [[ "$component" == gateway ]]; then
+              image="$GATEWAY_IMAGE"
+              repository=sdsc-hpc-training-dev/hpc-learning-hub-apigateway
+            else
+              image="$FRONTEND_IMAGE"
+              repository=sdsc-hpc-training-dev/hpc-learning-hub-frontend
+            fi
+
+            # Reads registry metadata only; no image layers are pulled.
+            if ! docker buildx imagetools inspect "$image:$tag" \
+              --format '{{json .Manifest}}' > "$component.registry.json"; then
+              echo "::warning::$image:$tag is missing or inaccessible. No manifest will be released."
+              found=false
+              continue
+            fi
+
+            digest=$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' "$component.registry.json")
+
+            # Read source metadata using the captured digest, not the moving tag.
+            # Older images without a revision label still have a usable digest.
+            source_commit=null
+            if docker buildx imagetools inspect "$image@$digest" \
+              --format '{{json .Image}}' > "$component.config.json"; then
+              source_commit=$(jq -c '
+                [.. | objects | .Labels? // empty |
+                  .["org.opencontainers.image.revision"] // empty] |
+                unique | if length == 1 then .[0] else null end
+              ' "$component.config.json")
+            else
+              echo "::warning::Could not read the source commit label for $image@$digest."
+            fi
+
+            jq -n \
+              --arg repository "$repository" \
+              --arg image "$image" \
+              --arg tag "$tag" \
+              --arg digest "$digest" \
+              --argjson source_commit "$source_commit" \
+              '{repository: $repository, image: $image, tag: $tag,
+                digest: $digest, reference: ($image + "@" + $digest),
+                source_commit: $source_commit}' > "$component.json"
+          done
+
+          echo "found=$found" >> "$GITHUB_OUTPUT"
+          if [[ "$found" != true ]]; then
+            echo "No release created: both $tag images must exist and be readable." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Create release manifest
+        if: steps.images.outputs.found == 'true'
+        run: |
+          jq -n \
+            --arg version "$VERSION" \
+            --slurpfile gateway gateway.json \
+            --slurpfile frontend frontend.json \
+            '{schema_version: 1, release: $version,
+              components: {gateway: $gateway[0], frontend: $frontend[0]}}' \
+            > release-manifest.json
+
+      - name: Publish manifest as a GitHub prerelease
+        if: steps.images.outputs.found == 'true'
+        shell: bash
+        run: |
+          release_tag="v$VERSION-dev"
+          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release $release_tag already exists. Its manifest has not been overwritten."
+            exit 1
+          fi
+
+          # Upload the asset to a draft before making the release public.
+          gh release create "$release_tag" release-manifest.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Dev release $VERSION" \
+            --notes "Frontend and gateway image digests for $VERSION-dev. Image builds and checks are performed by the image workflows." \
+            --draft --prerelease --latest=false
+
+          gh release edit "$release_tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false --prerelease --latest=false
+
+          {
+            echo "Published release-manifest.json on release $release_tag."
+            echo
+            jq -r '.components | to_entries[] | "- \(.key): `\(.value.reference)`"' release-manifest.json
+          } >> "$GITHUB_STEP_SUMMARY"
