@@ -15,6 +15,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
+    if (/^\/api\/v1\/bug-reports\/?$/i.test(request.path)) {
+      const status =
+        exception instanceof HttpException
+          ? exception.getStatus()
+          : parserErrorStatus(exception);
+      response
+        .set('Cache-Control', 'no-store')
+        .status(status)
+        .json({ statusCode: status, message: 'Report could not be accepted' });
+      return;
+    }
+
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
@@ -61,4 +73,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
       });
     }
   }
+}
+
+function parserErrorStatus(exception: unknown): number {
+  if (typeof exception !== 'object' || exception === null) return 500;
+  const { type } = exception as { type?: unknown };
+  if (type === 'entity.too.large') return 413;
+  if (type === 'encoding.unsupported' || type === 'charset.unsupported') {
+    return 415;
+  }
+  if (type === 'entity.parse.failed' || type === 'request.size.invalid') {
+    return 400;
+  }
+  return 500;
 }

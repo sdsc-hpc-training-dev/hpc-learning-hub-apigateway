@@ -22,6 +22,7 @@ function hostFor(url: string): {
     statusCode: 0,
   };
   const httpResponse = {
+    set: jest.fn().mockReturnThis(),
     status(statusCode: number) {
       response.statusCode = statusCode;
       return {
@@ -33,7 +34,7 @@ function hostFor(url: string): {
   };
   const host = {
     switchToHttp: () => ({
-      getRequest: () => ({ url }),
+      getRequest: () => ({ url, path: url.split('?')[0] }),
       getResponse: () => httpResponse,
     }),
   } as unknown as ArgumentsHost;
@@ -61,6 +62,25 @@ it('includes the error field for a default unauthorized exception', () => {
       path: '/api/v1/me/learning-paths',
     }),
   );
+});
+
+it.each([
+  [new BadRequestException('private validation detail'), 400],
+  [{ type: 'entity.parse.failed' }, 400],
+  [{ type: 'request.size.invalid' }, 400],
+  [{ type: 'entity.too.large' }, 413],
+  [{ type: 'encoding.unsupported' }, 415],
+  [{ type: 'charset.unsupported' }, 415],
+  [new Error('private database detail'), 500],
+  [null, 500],
+])('does not echo rejected report or URL details', (error, status) => {
+  const { host, response } = hostFor('/api/v1/BUG-REPORTS/?value=private');
+  new HttpExceptionFilter().catch(error, host);
+  expect(response.statusCode).toBe(status);
+  expect(response.body).toEqual({
+    statusCode: status,
+    message: 'Report could not be accepted',
+  });
 });
 
 describe('HttpExceptionFilter', () => {

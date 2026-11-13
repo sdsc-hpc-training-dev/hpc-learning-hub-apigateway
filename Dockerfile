@@ -1,22 +1,22 @@
-FROM node:22.23.4-bookworm-slim AS dependencies
+FROM node:22.23.5-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
-FROM node:22.23.4-bookworm-slim AS build
+FROM node:22.23.5-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee AS build
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:22.23.4-bookworm-slim AS runtime
+FROM node:22.23.5-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
     && npm cache clean --force \
-    && apt-get update \
+    && apt-get -o APT::Update::Error-Mode=any update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/* \
       /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \

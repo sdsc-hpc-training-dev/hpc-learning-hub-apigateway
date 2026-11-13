@@ -13,6 +13,7 @@ import { TrainingLibraryModule } from './training-library/training-library.modul
 import { UsersModule } from './users/users.module';
 import { privateFeaturesEnabled } from './configuration/feature-flags';
 import { FeedbackModule } from './feedback/feedback.module';
+import { BugReportsModule } from './bug-reports/bug-reports.module';
 
 const privateFeatureModules = privateFeaturesEnabled()
   ? [AidaModule, AuthModule, MyLearningModule, UsersModule]
@@ -30,6 +31,7 @@ const privateFeatureModules = privateFeaturesEnabled()
     TrainingLibraryModule,
     ObservabilityModule,
     FeedbackModule,
+    BugReportsModule,
     ...privateFeatureModules,
   ],
   controllers: [AppController],
